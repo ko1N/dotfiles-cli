@@ -1,0 +1,8 @@
+### language configuration
+# [[language]]
+# name = "rust"
+# language-servers = ["rust-analyzer", "lsp-ai"]
+# auto-format = true
+
+[language-server.rust-analyzer.config]
+check.command = "clippy"
