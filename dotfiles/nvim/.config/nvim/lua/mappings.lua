@@ -59,8 +59,8 @@ map("n", "<leader>f/", "<cmd>Telescope live_grep<cr>", { desc = "Live Grep" })
 -- visual maps
 map("v", "<leader>r", '"hy:%s/<C-r>h//g<left><left>', { desc = "Rename in file" })
 map("v", "<leader>s", ":sort<CR>", { desc = "Sort selection" })
-map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move line up" })
-map("v", "K", ":m '>-2<CR>gv=gv", { desc = "Move line down" })
+map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected lines up" })
+map("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected lines down" })
 
 -- show documentation under cursor
 map("n", "<leader>k", vim.lsp.buf.hover, { desc = "Show Docs", silent = true, noremap = true })

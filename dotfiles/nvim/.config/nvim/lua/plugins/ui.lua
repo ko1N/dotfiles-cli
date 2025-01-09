@@ -75,11 +75,11 @@ return {
     end,
   },
 
-  {
-    "m4xshen/smartcolumn.nvim",
-    event = "VeryLazy",
-    opts = {},
-  },
+  -- {
+  --   "m4xshen/smartcolumn.nvim",
+  --   event = "VeryLazy",
+  --   opts = {},
+  -- },
 
   {
     "rcarriga/nvim-notify",
