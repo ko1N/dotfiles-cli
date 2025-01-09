@@ -4,14 +4,14 @@ local map = vim.keymap.set
 
 map("n", ";", ":", { desc = "CMD enter command mode" })
 -- map("i", "jk", "<ESC>")
-map({ "n", "i", "v" }, "<C-s>", "<cmd> w <cr>")
+map({ "n", "i", "v" }, "<C-s>", "<cmd>w<cr>", { noremap = true, silent = true })
 
 -- tmux navigation
-map("n", "<c-h>", "<cmd>TmuxNavigateLeft<cr>")
-map("n", "<c-j>", "<cmd>TmuxNavigateDown<cr>")
-map("n", "<c-k>", "<cmd>TmuxNavigateUp<cr>")
-map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>")
-map("n", "<c-\\>", "<cmd>TmuxNavigatePrevious<cr>")
+map("n", "<c-h>", "<cmd>TmuxNavigateLeft<cr>", { noremap = true, silent = true })
+map("n", "<c-j>", "<cmd>TmuxNavigateDown<cr>", { noremap = true, silent = true })
+map("n", "<c-k>", "<cmd>TmuxNavigateUp<cr>", { noremap = true, silent = true })
+map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>", { noremap = true, silent = true })
+map("n", "<c-\\>", "<cmd>TmuxNavigatePrevious<cr>", { noremap = true, silent = true })
 
 -- advanced window resizing
 function _G.window_resize_vert(direction)
@@ -44,10 +44,10 @@ function _G.window_resize_hor(direction)
   end
 end
 
-map("n", "<c-a-h>", "<cmd>lua window_resize_hor(-3)<CR>")
-map("n", "<c-a-j>", "<cmd>lua window_resize_vert(3)<CR>")
-map("n", "<c-a-k>", "<cmd>lua window_resize_vert(-3)<CR>")
-map("n", "<c-a-l>", "<cmd>lua window_resize_hor(3)<CR>")
+map("n", "<c-a-h>", "<cmd>lua window_resize_hor(-3)<CR>", { noremap = true, silent = true })
+map("n", "<c-a-j>", "<cmd>lua window_resize_vert(3)<CR>", { noremap = true, silent = true })
+map("n", "<c-a-k>", "<cmd>lua window_resize_vert(-3)<CR>", { noremap = true, silent = true })
+map("n", "<c-a-l>", "<cmd>lua window_resize_hor(3)<CR>", { noremap = true, silent = true })
 
 -- writing files
 map("n", "<leader>wq", ":wq<cr>", { desc = "Write buffer and close" })
@@ -57,13 +57,15 @@ map("n", "<leader>ww", ":w<cr>", { desc = "Write buffer" })
 map("n", "<leader>f/", "<cmd>Telescope live_grep<cr>", { desc = "Live Grep" })
 
 -- visual maps
-map("v", "<leader>r", '"hy:%s/<C-r>h//g<left><left>', { desc = "Rename in file" })
-map("v", "<leader>s", ":sort<CR>", { desc = "Sort selection" })
-map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected lines up" })
-map("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected lines down" })
+map("v", "<leader>r", '"hy:%s/<C-r>h//g<left><left>', { silent = true, desc = "Rename in file" })
+map("v", "<leader>s", ":sort<CR>", { silent = true, desc = "Sort selection" })
+map("v", "J", ":m '>+1<CR>gv=gv", { noremap = true, silent = true, desc = "Move selected lines up" })
+map("v", "K", ":m '<-2<CR>gv=gv", { noremap = true, silent = true, desc = "Move selected lines down" })
+map("v", ">", ">gv", { noremap = true, silent = true })
+map("v", "<", "<gv", { noremap = true, silent = true })
 
 -- show documentation under cursor
-map("n", "<leader>k", vim.lsp.buf.hover, { desc = "Show Docs", silent = true, noremap = true })
+map("n", "<leader>k", vim.lsp.buf.hover, { silent = true, noremap = true, desc = "Show Docs" })
 -- map({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts_l)
 
 -- toggle aerial overview
