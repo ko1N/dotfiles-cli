@@ -32,6 +32,8 @@ dofile(vim.g.base46_cache .. "statusline")
 require "options"
 require "nvchad.autocmds"
 
+require "custom.colorcolumn"
+
 vim.schedule(function()
   require "mappings"
 end)
