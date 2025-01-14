@@ -14,27 +14,27 @@ RUN pacman -S --noconfirm openssh curl wget git
 RUN pacman -S --noconfirm python npm gcc clang zig rustup
 
 # create user and group
-RUN groupadd -g 1001 patrick
-RUN useradd -m -g patrick -s /bin/fish -u 1001 patrick
+RUN groupadd -g 1001 ko1N
+RUN useradd -m -g ko1N -s /bin/fish -u 1001 ko1N
 
-ADD dotfiles /home/patrick/dotfiles
-RUN chown -R patrick:patrick /home/patrick
+ADD dotfiles /home/ko1N/dotfiles
+RUN chown -R ko1N:ko1N /home/ko1N
 
-USER patrick
+USER ko1N
 
-WORKDIR /home/patrick/dotfiles
+WORKDIR /home/ko1N/dotfiles
 RUN stow -t ~/ *
 
 # create ssh folder
-RUN mkdir /home/patrick/.ssh
-RUN chmod 700 /home/patrick/.ssh
+RUN mkdir /home/ko1N/.ssh
+RUN chmod 700 /home/ko1N/.ssh
 
 # setup tmux plugins (might fail if tpm was installed on the host building this)
-RUN git clone https://github.com/tmux-plugins/tpm /home/patrick/.tmux/plugins/tpm | true
+RUN git clone https://github.com/tmux-plugins/tpm /home/ko1N/.tmux/plugins/tpm | true
 
 # install rust as user
 RUN rustup default stable
 
-WORKDIR /home/patrick
+WORKDIR /home/ko1N
 ENTRYPOINT ["/bin/fish"]
 
