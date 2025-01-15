@@ -17,3 +17,6 @@ o.showtabline = 2
 
 o.scrolloff = 4
 o.sidescrolloff = 6
+
+-- for avante.nvim
+o.laststatus = 3

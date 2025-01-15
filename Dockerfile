@@ -11,7 +11,7 @@ RUN pacman -S --noconfirm fish neovim lua luarocks starship tmux ripgrep fd bat 
 RUN pacman -S --noconfirm openssh curl wget git
 
 # language support
-RUN pacman -S --noconfirm python npm gcc clang zig rustup
+RUN pacman -S --noconfirm python npm gcc clang zig rustup go
 
 # create user and group
 RUN groupadd -g 1001 ko1N
