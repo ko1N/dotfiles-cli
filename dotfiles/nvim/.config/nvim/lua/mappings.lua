@@ -49,6 +49,8 @@ map("n", "<c-a-j>", "<cmd>lua window_resize_vert(3)<CR>", { noremap = true, sile
 map("n", "<c-a-k>", "<cmd>lua window_resize_vert(-3)<CR>", { noremap = true, silent = true })
 map("n", "<c-a-l>", "<cmd>lua window_resize_hor(3)<CR>", { noremap = true, silent = true })
 
+-- TODO: move/rotate windows on alt+[] left/right (cycle)
+
 -- writing files
 map("n", "<leader>wq", ":wq<cr>", { desc = "Write buffer and close" })
 map("n", "<leader>ww", ":w<cr>", { desc = "Write buffer" })
@@ -69,8 +71,8 @@ map("n", "<leader>k", vim.lsp.buf.hover, { silent = true, noremap = true, desc =
 -- map({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts_l)
 
 -- toggle aerial overview
-map("n", "<leader>a", "<cmd>AerialToggle!<CR>", { desc = "Toggle Aerial View" })
-map("n", "<leader>ga", "<cmd>AerialNavToggle<CR>", { desc = "Toggle Aerial Navigator" })
+map("n", "<leader>o", "<cmd>AerialToggle!<CR>", { desc = "Toggle Aerial View" })
+-- map("n", "<leader>ga", "<cmd>AerialNavToggle<CR>", { desc = "Toggle Aerial Navigator" })
 
 -- rebind ctrl+c to act as 'Esc' in all modes (except command-line and terminal mode)
 map({ "n", "i", "v", "x", "s" }, "<C-c>", "<Esc>", { noremap = true, silent = true })

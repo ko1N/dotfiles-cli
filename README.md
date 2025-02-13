@@ -1,4 +1,4 @@
-# cli dotfiles / 2024
+# cli dotfiles / 2025
 
 ![Screenshot](/screenshot.png "Screenshot")
 

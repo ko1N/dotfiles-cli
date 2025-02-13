@@ -53,6 +53,11 @@ set -gx PATH $RUSTBIN $PATH
 
 set -gx PATH $HOME/.local/bin $PATH
 
+# secrets
+if test -f ~/.config/fish/secrets.fish
+  source ~/.config/fish/secrets.fish
+end
+
 # aliases
 alias t="eza --git-repos --icons=auto --tree"
 alias ls="eza --git-repos --icons=auto"
