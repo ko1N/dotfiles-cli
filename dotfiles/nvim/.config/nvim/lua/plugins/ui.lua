@@ -1,5 +1,15 @@
 return {
   {
+    "sphamba/smear-cursor.nvim",
+    opts = {
+      cursor_color = "#aaaaaa",
+      legacy_computing_symbols_support = true,
+      smear_insert_mode = true,
+    },
+    event = { "WinEnter" },
+  },
+
+  {
     "nvim-zh/colorful-winsep.nvim",
     config = function()
       require("colorful-winsep").setup {
@@ -96,6 +106,7 @@ return {
       vim.notify = require "notify"
     end,
   },
+
   {
     "stevearc/dressing.nvim",
     opts = {},

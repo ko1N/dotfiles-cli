@@ -1,9 +1,17 @@
 return {
   {
-    'saecki/crates.nvim',
+    "saecki/crates.nvim",
     event = { "BufRead Cargo.toml" },
     config = function()
-      require('crates').setup()
+      require("crates").setup()
+    end,
+  },
+  {
+    "cordx56/rustowl",
+    dependencies = { "neovim/nvim-lspconfig" },
+    config = function()
+      local lspconfig = require "lspconfig"
+      lspconfig.rustowlsp.setup {}
     end,
   },
 }
