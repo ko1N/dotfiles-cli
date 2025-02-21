@@ -6,7 +6,7 @@ return {
       legacy_computing_symbols_support = true,
       smear_insert_mode = true,
     },
-    event = { "WinEnter" },
+    event = "VeryLazy",
   },
 
   {
@@ -19,7 +19,7 @@ return {
         },
       }
     end,
-    event = { "WinLeave" },
+    event = "VeryLazy",
   },
 
   {
@@ -40,7 +40,7 @@ return {
         end,
       }
     end,
-    event = { "WinLeave" },
+    event = "WinLeave",
   },
 
   {
@@ -59,16 +59,18 @@ return {
         end,
       }
     end,
-    event = { "WinEnter" },
+    event = "WinEnter",
   },
 
   {
     "folke/flash.nvim",
     event = "VeryLazy",
     opts = {
-      rainbow = {
-        -- enable colors
-        enabled = true,
+      label = {
+        rainbow = {
+          -- enable colors
+          enabled = true,
+        },
       },
       modes = {
         search = {
@@ -78,14 +80,14 @@ return {
       },
     },
     keys = {
-      {
-        "s",
-        mode = { "n", "x", "o" },
-        function()
-          require("flash").jump()
-        end,
-        desc = "Flash",
-      },
+      -- {
+      --   "s",
+      --   mode = { "n", "x", "o" },
+      --   function()
+      --     require("flash").jump()
+      --   end,
+      --   desc = "Flash",
+      -- },
       {
         "S",
         mode = { "n", "x", "o" },
