@@ -9,7 +9,7 @@ return {
       provider = "claude",
       claude = {
         endpoint = "https://api.anthropic.com",
-        model = "claude-3-5-sonnet-latest",
+        model = "claude-3-7-sonnet-latest",
         temperature = 0,
         max_tokens = 4096,
       },
@@ -56,7 +56,8 @@ return {
   -- autocomplete
   {
     "milanglacier/minuet-ai.nvim",
-    cmd = "Minuet",
+    -- cmd = "Minuet",
+    event = "VeryLazy",
     config = function()
       require("minuet").setup {
         provider = "claude",
@@ -68,19 +69,19 @@ return {
           },
         },
         virtualtext = {
-          auto_trigger_ft = {},
+          auto_trigger_ft = { "python", "lua", "rust" },
           keymap = {
             -- accept whole completion
-            accept = "<A-A>",
+            accept = "<A-a>",
             -- accept one line
-            accept_line = "<A-a>",
+            -- accept_line = "<A-a>",
             -- accept n lines (prompts for number)
-            accept_n_lines = "<A-z>",
+            -- accept_n_lines = "<A-z>",
             -- Cycle to prev completion item, or manually invoke completion
-            prev = "<A-[>",
+            prev = "<A-Tab>",
             -- Cycle to next completion item, or manually invoke completion
-            next = "<A-]>",
-            dismiss = "<A-e>",
+            -- next = "<A-]>",
+            -- dismiss = "<A-e>",
           },
         },
       }

@@ -26,7 +26,7 @@ return {
     },
   },
 
-  -- ui plugins
+  -- misc plugins
   {
     "folke/trouble.nvim",
     opts = {},
