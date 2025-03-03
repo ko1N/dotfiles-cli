@@ -2,8 +2,10 @@ return {
   {
     "sphamba/smear-cursor.nvim",
     cond = function()
-      -- Only enable on non-SSH sessions
-      return not (vim.env.SSH_CONNECTION or vim.env.SSH_CLIENT)
+      -- Only enable on non-SSH sessions and non-Windows systems
+      local is_ssh = vim.env.SSH_CONNECTION or vim.env.SSH_CLIENT
+      local is_windows = vim.fn.has "win32" == 1 or vim.fn.has "win64" == 1
+      return not (is_ssh or is_windows)
     end,
     opts = {
       -- stiffness = 0.8,
