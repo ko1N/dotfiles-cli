@@ -11,7 +11,7 @@ return {
         endpoint = "https://api.anthropic.com",
         model = "claude-3-7-sonnet-latest",
         temperature = 0,
-        max_tokens = 4096,
+        max_tokens = 8192,
       },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
@@ -69,7 +69,7 @@ return {
           },
         },
         virtualtext = {
-          auto_trigger_ft = { "python", "lua", "rust" },
+          auto_trigger_ft = { "python", "lua", "rust", "go" },
           keymap = {
             -- accept whole completion
             accept = "<A-a>",

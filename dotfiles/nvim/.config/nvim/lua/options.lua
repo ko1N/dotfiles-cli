@@ -20,3 +20,6 @@ o.sidescrolloff = 6
 
 -- for avante.nvim
 o.laststatus = 3
+
+-- for obsidian.nvim
+o.conceallevel = 1
