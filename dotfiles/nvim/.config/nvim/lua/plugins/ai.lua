@@ -11,7 +11,7 @@ return {
         endpoint = "https://api.anthropic.com",
         model = "claude-3-7-sonnet-latest",
         temperature = 0,
-        max_tokens = 8192,
+        max_tokens = 32000, -- 32768, -- 8192,
       },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
