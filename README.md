@@ -10,8 +10,7 @@ stow -t ~/ *
 ### dependencies
 arch linux:
 ```
-pacman -S fish neovim lua luarocks starship tmux ripgrep fd bat fzf zoxide eza yazi
-pacman -S zellij tree helix ranger # optional packages
+pacman -S fish neovim lua luarocks starship tmux ripgrep fd bat fzf zoxide eza tree yazi
 ```
 
 # tmux plugin manager
