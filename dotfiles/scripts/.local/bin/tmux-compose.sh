@@ -5,6 +5,32 @@
 
 set -e
 
+# Get base-index from tmux config (default to 0 if not found)
+get_base_index() {
+    local base_index
+    base_index=$(tmux show-options -g base-index 2>/dev/null | awk '{print $2}')
+    if [ -z "$base_index" ]; then
+        echo 0  # Default value if not set
+    else
+        echo "$base_index"
+    fi
+}
+
+# Get pane-base-index from tmux config (default to 0 if not found)
+get_pane_base_index() {
+    local pane_base_index
+    pane_base_index=$(tmux show-options -g pane-base-index 2>/dev/null | awk '{print $2}')
+    if [ -z "$pane_base_index" ]; then
+        echo 0  # Default value if not set
+    else
+        echo "$pane_base_index"
+    fi
+}
+
+# Store the base indices
+BASE_INDEX=$(get_base_index)
+PANE_BASE_INDEX=$(get_pane_base_index)
+
 # Check if yq is installed (for YAML parsing)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed."
@@ -138,7 +164,8 @@ create_sessions() {
                     if [ -n "$PANE_CMD" ] && [ "$PANE_CMD" != "null" ]; then
                         # For the first pane, we need to target it specifically
                         if [ "$p" -eq 0 ]; then
-                            tmux send-keys -t "$SESSION_NAME:$WINDOW_NAME.0" "$PANE_CMD" C-m
+                            # Use the correct pane index based on tmux configuration
+                            tmux send-keys -t "$SESSION_NAME:$WINDOW_NAME.$PANE_BASE_INDEX" "$PANE_CMD" C-m
                         else
                             # The newly created pane becomes the active one
                             tmux send-keys -t "$SESSION_NAME:$WINDOW_NAME" "$PANE_CMD" C-m
@@ -154,8 +181,8 @@ create_sessions() {
                     # Give tmux a moment to settle
                     sleep 0.2
                     
-                    # Select the first pane before applying layout
-                    tmux select-pane -t "$SESSION_NAME:$WINDOW_NAME.0" 2>/dev/null
+                    # Select the first pane before applying layout (using the correct base index)
+                    tmux select-pane -t "$SESSION_NAME:$WINDOW_NAME.$PANE_BASE_INDEX" 2>/dev/null
                     
                     # Apply the layout
                     tmux select-layout -t "$SESSION_NAME:$WINDOW_NAME" "$LAYOUT" 2>/dev/null || \
@@ -164,8 +191,8 @@ create_sessions() {
             fi
         done
         
-        # Select the first window
-        tmux select-window -t "$SESSION_NAME:0"
+        # Select the first window (using the correct base index)
+        tmux select-window -t "$SESSION_NAME:$BASE_INDEX"
     done
     
     echo "All sessions created successfully!"
