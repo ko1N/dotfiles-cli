@@ -3,7 +3,8 @@ local options = {
     lua = { "stylua" },
     css = { "prettier" },
     html = { "prettier" },
-    python = { "isort", "black" },
+    --python = { "isort", "black" },
+    python = { "black" }, -- no import sorting
     rust = { "rustfmt", lsp_format = "fallback" },
     javascript = { "prettierd", "prettier", stop_after_first = true },
     sql = { "sqlfluff" },
