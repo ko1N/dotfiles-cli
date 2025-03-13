@@ -1,2 +1,3 @@
 [flavor]
-use = "catppuccin-mocha"
+use = "tokyo-night"
+dark = "tokyo-night"
