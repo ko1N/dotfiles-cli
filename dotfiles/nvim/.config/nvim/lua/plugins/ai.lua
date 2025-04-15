@@ -54,45 +54,45 @@ return {
   },
 
   -- autocomplete
-  {
-    "milanglacier/minuet-ai.nvim",
-    -- cmd = "Minuet",
-    event = "VeryLazy",
-    config = function()
-      require("minuet").setup {
-        provider = "claude",
-        provider_options = {
-          claude = {
-            max_tokens = 512,
-            model = "claude-3-5-haiku-latest",
-            stream = true,
-          },
-        },
-        virtualtext = {
-          auto_trigger_ft = { "python", "lua", "rust", "go" },
-          keymap = {
-            -- accept whole completion
-            accept = "<A-a>",
-            -- accept one line
-            -- accept_line = "<A-a>",
-            -- accept n lines (prompts for number)
-            -- accept_n_lines = "<A-z>",
-            -- Cycle to prev completion item, or manually invoke completion
-            prev = "<A-Tab>",
-            -- Cycle to next completion item, or manually invoke completion
-            -- next = "<A-]>",
-            -- dismiss = "<A-e>",
-          },
-        },
-      }
-    end,
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      -- optional, if you are using virtual-text frontend, nvim-cmp is not
-      -- required.
-      -- "hrsh7th/nvim-cmp",
-      -- optional, if you are using virtual-text frontend, blink is not required.
-      -- "Saghen/blink.cmp",
-    },
-  },
+  -- {
+  --   "milanglacier/minuet-ai.nvim",
+  --   -- cmd = "Minuet",
+  --   event = "VeryLazy",
+  --   config = function()
+  --     require("minuet").setup {
+  --       provider = "claude",
+  --       provider_options = {
+  --         claude = {
+  --           max_tokens = 512,
+  --           model = "claude-3-5-haiku-latest",
+  --           stream = true,
+  --         },
+  --       },
+  --       virtualtext = {
+  --         auto_trigger_ft = { "python", "lua", "rust", "go" },
+  --         keymap = {
+  --           -- accept whole completion
+  --           accept = "<A-a>",
+  --           -- accept one line
+  --           -- accept_line = "<A-a>",
+  --           -- accept n lines (prompts for number)
+  --           -- accept_n_lines = "<A-z>",
+  --           -- Cycle to prev completion item, or manually invoke completion
+  --           prev = "<A-Tab>",
+  --           -- Cycle to next completion item, or manually invoke completion
+  --           -- next = "<A-]>",
+  --           -- dismiss = "<A-e>",
+  --         },
+  --       },
+  --     }
+  --   end,
+  --   dependencies = {
+  --     "nvim-lua/plenary.nvim",
+  --     -- optional, if you are using virtual-text frontend, nvim-cmp is not
+  --     -- required.
+  --     -- "hrsh7th/nvim-cmp",
+  --     -- optional, if you are using virtual-text frontend, blink is not required.
+  --     -- "Saghen/blink.cmp",
+  --   },
+  -- },
 }

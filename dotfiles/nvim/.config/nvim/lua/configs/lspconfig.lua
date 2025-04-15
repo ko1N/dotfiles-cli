@@ -7,7 +7,7 @@ local util = require "lspconfig/util"
 -- lsp configuration
 local servers = {
   "html",
-  "cssls",
+  -- "cssls",
   "rust_analyzer",
   "gopls",
   "zls",

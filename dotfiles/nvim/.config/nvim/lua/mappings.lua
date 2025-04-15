@@ -4,16 +4,25 @@ local map = vim.keymap.set
 
 map("n", ";", ":", { desc = "CMD enter command mode" })
 -- map("i", "jk", "<ESC>")
-map({ "n", "i", "v" }, "<C-s>", "<cmd>w<cr>", { noremap = true, silent = true })
 
--- tmux navigation
+-- Make visual mode paste not overwrite the default register
+map("x", "p", '"_dP', { noremap = true, silent = true })
+
+-- Writing files and closing buffer shortcuts
+map({ "n", "i", "v" }, "<C-s>", "<cmd>w<cr>", { noremap = true, silent = true })
+map({ "n", "i", "v" }, "<C-q>", "<cmd>q<cr>", { noremap = true, silent = true })
+map("n", "<leader>q", "<cmd>q<cr>", { desc = "Close buffer" })
+map("n", "<leader>wq", "<cmd>wq<cr>", { desc = "Write buffer and close" })
+map("n", "<leader>ww", "<cmd>w<cr>", { desc = "Write buffer" })
+
+-- Tmux integration
 map("n", "<c-h>", "<cmd>TmuxNavigateLeft<cr>", { noremap = true, silent = true })
 map("n", "<c-j>", "<cmd>TmuxNavigateDown<cr>", { noremap = true, silent = true })
 map("n", "<c-k>", "<cmd>TmuxNavigateUp<cr>", { noremap = true, silent = true })
 map("n", "<c-l>", "<cmd>TmuxNavigateRight<cr>", { noremap = true, silent = true })
 map("n", "<c-\\>", "<cmd>TmuxNavigatePrevious<cr>", { noremap = true, silent = true })
 
--- advanced window resizing
+-- Advanced window resizing
 function _G.window_resize_vert(direction)
   local win_id = vim.api.nvim_get_current_win()
 
@@ -51,12 +60,12 @@ map("n", "<c-a-l>", "<cmd>lua window_resize_hor(3)<CR>", { noremap = true, silen
 
 -- TODO: move/rotate windows on alt+[] left/right (cycle)
 
--- writing files
-map("n", "<leader>wq", ":wq<cr>", { desc = "Write buffer and close" })
-map("n", "<leader>ww", ":w<cr>", { desc = "Write buffer" })
-
--- live grep
-map("n", "<leader>f/", "<cmd>Telescope live_grep<cr>", { desc = "Live Grep" })
+-- telescope defaults
+map("n", "<leader>ff", require("telescope.builtin").find_files, { desc = "Telescope find files" })
+map("n", "<leader>fg", require("telescope.builtin").live_grep, { desc = "Telescope live grep" })
+map("n", "<leader>f/", require("telescope.builtin").live_grep, { desc = "Telescope live grep" })
+map("n", "<leader>fb", require("telescope.builtin").buffers, { desc = "Telescope buffers" })
+map("n", "<leader>fh", require("telescope.builtin").help_tags, { desc = "Telescope help tags" })
 
 -- visual maps
 map("v", "<leader>r", '"hy:%s/<C-r>h//g<left><left>', { silent = true, desc = "Rename in file" })

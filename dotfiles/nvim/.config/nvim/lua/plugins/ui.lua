@@ -179,6 +179,58 @@ return {
     end,
   },
 
+  -- {
+  --   "VonHeikemen/fine-cmdline.nvim",
+  --   lazy = false,
+  --   priority = 100,
+  --   dependencies = {
+  --     "MunifTanjim/nui.nvim",
+  --   },
+  --   config = function()
+  --     require("fine-cmdline").setup {
+  --       cmdline = {
+  --         enable_keymaps = true,
+  --         smart_history = true,
+  --         prompt = ": ",
+  --       },
+  --       popup = {
+  --         position = {
+  --           row = "50%",
+  --           col = "50%",
+  --         },
+  --         size = {
+  --           width = "60%",
+  --         },
+  --         border = {
+  --           style = "rounded",
+  --         },
+  --         win_options = {
+  --           winhighlight = "Normal:Normal,FloatBorder:FloatBorder",
+  --         },
+  --       },
+  --     }
+  --     -- overwrite vim default keymap and hide cmdline
+  --     vim.api.nvim_set_keymap("n", ":", "<cmd>FineCmdline<CR>", { noremap = true })
+  --     vim.opt.cmdheight = 0
+  --   end,
+  -- },
+
+  -- custom teleprompt binds
+  {
+    "nvim-telescope/telescope.nvim",
+    event = "VeryLazy",
+    config = {
+      defaults = {
+        mappings = {
+          i = {
+            ["<C-j>"] = require("telescope.actions").move_selection_next,
+            ["<C-k>"] = require("telescope.actions").move_selection_previous,
+          },
+        },
+      },
+    },
+  },
+
   {
     "stevearc/dressing.nvim",
     opts = {},
