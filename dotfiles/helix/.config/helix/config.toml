@@ -1,0 +1,11 @@
+theme = "onedark2"
+
+[keys.normal]
+C-s = ":w"
+C-c = "normal_mode"
+
+[keys.insert]
+C-c = "normal_mode"
+
+[keys.select]
+C-c = "normal_mode"

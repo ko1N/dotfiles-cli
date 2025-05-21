@@ -5,7 +5,9 @@ local map = vim.keymap.set
 map("n", ";", ":", { desc = "CMD enter command mode" })
 -- map("i", "jk", "<ESC>")
 
--- Make visual mode paste not overwrite the default register
+map("n", "ge", "G", { noremap = true, silent = true, desc = "Go to end of file" })
+
+-- Make visual mode paste replace selected text without overwriting register
 map("x", "p", '"_dP', { noremap = true, silent = true })
 
 -- Writing files and closing buffer shortcuts

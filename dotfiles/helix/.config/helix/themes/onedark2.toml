@@ -1,0 +1,4 @@
+inherits = "onedark"
+
+"ui.background" = { bg = "#151620", fg = "#151620" }
+
