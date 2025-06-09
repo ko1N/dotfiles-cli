@@ -8,6 +8,7 @@ local util = require "lspconfig/util"
 local servers = {
   "html",
   "cssls",
+  "pyright",
   "rust_analyzer",
   "gopls",
   "zls",
