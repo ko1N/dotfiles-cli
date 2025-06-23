@@ -53,6 +53,8 @@ set -gx PATH $RUSTBIN $PATH
 
 set -gx PATH $HOME/.local/bin $PATH
 
+set -gx PATH $HOME/.npmenv/bin $PATH
+
 # secrets
 if test -f ~/.config/fish/secrets.fish
   source ~/.config/fish/secrets.fish
@@ -73,11 +75,12 @@ alias sshk="fish_ssh_remove_all_keys"
 
 alias gs="git status"
 alias ga="git add"
-alias gc="git commit"
+# alias gc="git commit"
 function batdiff
   git diff --name-only --relative --diff-filter=d $argv | xargs bat --diff
 end
 alias gd="batdiff"
+alias grm="git rebase origin/master"
 alias gri1="git rebase -i HEAD~~"
 alias gri2="git rebase -i HEAD~~~"
 alias gri3="git rebase -i HEAD~~~~"
@@ -111,6 +114,12 @@ alias vi="nvim"
 alias vim="nvim"
 alias hx="helix"
 alias ranger="yazi"
+
+# ansible logging aliases
+alias ansible='ansible-log run ansible'
+alias ansible-playbook='ansible-log run ansible-playbook'
+alias ansible-vault='ansible-log run ansible-vault'
+alias ansible-galaxy='ansible-log run ansible-galaxy'
 
 # scripts
 source $HOME/.config/fish/functions/fzf_navigation.fish
