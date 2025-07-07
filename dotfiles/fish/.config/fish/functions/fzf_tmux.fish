@@ -21,20 +21,21 @@ function tmc -d "Create or attach to current folders session"
     else
         echo "Creating new session '$session_name'..."
         tmux new-session -d -s $session_name
+        # tmux new-session -t $session_name -s "$session_name"--mirror
         tmux attach-session -t $session_name
     end
 end
 
 function tma -d "Attach tmux session"
-  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux attach -t "$result"
-end
-
-function tms -d "Switch tmux session"
-  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux switch-client -t "$result"
+  if test -n "$TMUX"
+    tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux switch-client -t "$result"
+  else
+    tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux attach -t "$result"
+  end
 end
 
 function tmm -d "Mirror tmux session"
-  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux new-session -t "$result" -s "$result"_mirror; and tmux switch-client -t "$result"_mirror
+  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux new-session -t "$result" -s "$result"--mirror; and tmux switch-client -t "$result"--mirror
 end
 
 function tmk -d "Kill tmux session"

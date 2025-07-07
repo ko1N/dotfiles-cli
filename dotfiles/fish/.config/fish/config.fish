@@ -114,6 +114,7 @@ alias vi="nvim"
 alias vim="nvim"
 alias hx="helix"
 alias ranger="yazi"
+alias files="yazi"
 
 # ansible logging aliases
 alias ansible='ansible-log run ansible'
