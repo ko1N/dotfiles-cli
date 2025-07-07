@@ -17,11 +17,13 @@ function tmc -d "Create or attach to current folders session"
     # Check if a session with this name already exists
     if tmux has-session -t $session_name 2>/dev/null
         echo "Session '$session_name' already exists. Attaching..."
+        # TODO: check if $TMUX is set
         tmux attach-session -t $session_name
     else
         echo "Creating new session '$session_name'..."
         tmux new-session -d -s $session_name
         # tmux new-session -t $session_name -s "$session_name"--mirror
+        # TODO: check if $TMUX is set
         tmux attach-session -t $session_name
     end
 end
