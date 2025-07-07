@@ -66,13 +66,19 @@ vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { noremap = true, silent = true, de
 vim.keymap.set("v", ">", ">gv", { noremap = true, silent = true })
 vim.keymap.set("v", "<", "<gv", { noremap = true, silent = true })
 
--- Show documentation under cursor
+-- LSP Actions
+vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>",
+    { noremap = true, silent = true, desc = "Go to definition" })
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { silent = true, noremap = true, desc = "Code action" })
 vim.keymap.set("n", "<leader>k", vim.lsp.buf.hover, { silent = true, noremap = true, desc = "Show Docs" })
 -- vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts_l)
 
 -- Rebind ctrl+c to act as 'Esc' in all modes (except command-line and terminal mode)
 vim.keymap.set({ "n", "i", "v", "x", "s" }, "<C-c>", "<Esc>", { noremap = true, silent = true })
+
+-- Undo search highlight
+--vim.keymap.set({ "n", "i" }, "<Esc>", "<cmd>noh<cr>", { noremap = false, silent = true })
+--vim.keymap.set({ "n", "i" }, "<C-c>", "<cmd>noh<cr>", { noremap = false, silent = true })
 
 -- Prevent escape from being remapped in :term windows
 vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]])

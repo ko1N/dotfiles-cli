@@ -100,21 +100,31 @@ alias vetinspect="cargo vet inspect --mode=local"
 alias gogo="cd $GOPATH/src"
 
 alias k="kubectl"
+alias hx="helix"
 
-# overrides
-alias cd="z"
-alias find="fd"
+# Flag overrides
 alias mv="mv -i"
 alias rm="rm -i"
-
-alias cat="bat --style=plain"
 alias grep="grep --color=auto"
 
-alias vi="nvim"
-alias vim="nvim"
-alias hx="helix"
-alias ranger="yazi"
-alias files="yazi"
+# Overrides (in case the tool is installed)
+if command -v z >/dev/null 2>&1
+    alias cd="z"
+end
+if command -v fd >/dev/null 2>&1
+    alias find="fd"
+end
+if command -v bat >/dev/null 2>&1
+    alias cat="bat --style=plain"
+end
+if command -v nvim >/dev/null 2>&1
+    alias vi="nvim"
+    alias vim="nvim"
+end
+if command -v yazi >/dev/null 2>&1
+    alias ranger="yazi"
+    alias files="yazi"
+end
 
 # ansible logging aliases
 alias ansible='ansible-log run ansible'
