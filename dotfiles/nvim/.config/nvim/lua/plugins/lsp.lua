@@ -1,31 +1,154 @@
-vim.api.nvim_create_autocmd("BufWritePre", {
-    buffer = buffer,
-    callback = function()
-        vim.lsp.buf.format { async = false }
+-- Language definitions
+local languages = {
+    { ts = "lua",        lsp = "lua_ls",              fmt = "luaformatter",       linter = "luacheck" },
+
+    { ts = "python",     lsp = "pyright",             fmt = { "black", "isort" }, linter = "flake8" },
+    { ts = "bash",       lsp = "bashls",              fmt = "shfmt",              linter = "shellcheck" },
+    { ts = "fish",       lsp = "fish_lsp" },
+
+    { ts = "html",       lsp = "html",                fmt = "prettier" },
+    { ts = "css",        lsp = "cssls",               fmt = "prettier" },
+    { ts = "scss",       lsp = "cssls",               fmt = "prettier" },
+    { ts = "javascript", lsp = "eslint",              fmt = "prettier",           linter = "eslint_d" },
+    { ts = "typescript", lsp = { "eslint", "ts_ls" }, fmt = "prettier",           linter = "eslint_d" },
+
+    { ts = "asm",        lsp = "asm_lsp" },
+    { ts = "c",          lsp = "clangd",              fmt = "clang-format" },
+    { ts = "cpp",        lsp = "clangd",              fmt = "clang-format" },
+    { ts = "rust",       lsp = "rust_analyzer", }, -- rustfmt needs to be installed via cargo/rustup
+    { ts = "zig",        lsp = "zls", },
+
+    { ts = "go",         lsp = "gopls",               fmt = "goimports" },
+
+    { ts = "glsl",       lsp = "glsl_analyzer" },
+    { ts = "sql",        lsp = "sqls",                fmt = "sql-formatter" },
+
+    { ts = "json",       lsp = "jsonls",              fmt = "prettier" },
+    { ts = "jsonc",      lsp = "jsonls",              fmt = "prettier" },
+    { ts = "toml",       lsp = "taplo",               fmt = "taplo" },
+    { ts = "yaml",       lsp = "yamlls",              fmt = "yamlfmt",            linter = "yamllint" },
+    { ts = "xml",        lsp = "lemminx",             fmt = "xmlformatter" },
+
+    { ts = "dockerfile", lsp = "dockerls",            linter = "hadolint" },
+    { ts = "terraform",  lsp = "terraformls",         fmt = "terraform",          linter = "tflint" },
+    { ts = "yaml",       lsp = "ansiblels" },
+    { ts = "nix",        lsp = "nil_ls",              fmt = "nixfmt" },
+
+    { ts = "markdown",   lsp = "marksman",            fmt = "prettier",           linter = "markdownlint" },
+    -- { ts = "tex",        lsp = "texlab",              fmt = "latexindent" },
+}
+
+local languages_treesitter = {}
+local languages_mason = {}
+
+local function add_to_table(target, items)
+    if not items then return end
+    if type(items) == "table" then
+        for _, item in ipairs(items) do
+            table.insert(target, item)
+        end
+    else
+        table.insert(target, items)
     end
+end
+for _, lang in ipairs(languages) do
+    add_to_table(languages_treesitter, lang.ts)
+    add_to_table(languages_mason, lang.lsp)
+    add_to_table(languages_mason, lang.fmt)
+    add_to_table(languages_mason, lang.linter)
+end
+
+-- Format on save
+vim.api.nvim_create_autocmd('LspAttach', {
+    group = vim.api.nvim_create_augroup('my.lsp', {}),
+    callback = function(args)
+        local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
+        -- Auto-format ("lint") on save.
+        -- Usually not needed if server supports "textDocument/willSaveWaitUntil".
+        if not client:supports_method('textDocument/willSaveWaitUntil')
+            and client:supports_method('textDocument/formatting') then
+            vim.api.nvim_create_autocmd('BufWritePre', {
+                group = vim.api.nvim_create_augroup('my.lsp', { clear = false }),
+                buffer = args.buf,
+                callback = function()
+                    vim.lsp.buf.format({ bufnr = args.buf, id = client.id, timeout_ms = 1000 })
+                end,
+            })
+        end
+    end,
 })
 
 return {
     {
-        "neovim/nvim-lspconfig",
+        'nvim-treesitter/nvim-treesitter',
+        build = ':TSUpdate',
+        config = function()
+            require("nvim-treesitter.configs").setup({
+                ensure_installed = languages_treesitter,
+                auto_install = true,
+                highlight = { enable = true, },
+                indent = { enable = true, },
+                -- incremental_selection = { enable = false },
+                -- textobjects = { enable = true },
+            })
+
+            -- Update all installed treesitter languages
+            vim.cmd(":TSUpdate")
+        end,
+    },
+    {
+        "mason-org/mason.nvim",
+        opts = {},
+        setup = function()
+            -- TODO: replace mason-tool-installer
+        end,
     },
     {
         "mason-org/mason-lspconfig.nvim",
-        opts = {
-            ensure_installed = {
-                "lua_ls",
-                "html",
-                "cssls",
-                "pyright",
-                "rust_analyzer",
-                "gopls",
-                "zls",
-                "glsl_analyzer",
-            },
-        },
         dependencies = {
-            { "mason-org/mason.nvim", opts = {} },
+            "mason-org/mason.nvim",
             "neovim/nvim-lspconfig",
         },
-    }
+        opts = {
+            -- Lsps are installed via mason-tool-installer as well
+            -- ensure_installed = languages_lsp,
+            automatic_enable = true,
+        },
+        config = function()
+            -- Configure LSP servers with custom settings
+            require("lspconfig").rust_analyzer.setup({
+                settings = {
+                    ["rust-analyzer"] = {
+                        cargo = {
+                            features = "all",
+                        },
+                        checkOnSave = {
+                            command = "clippy",
+                        },
+                    },
+                    gopls = {
+                        completeUnimported = true,
+                        usePlaceholders = true,
+                        analyses = {
+                            shadow = true,
+                            unusedparams = true,
+                        },
+                    },
+                },
+            })
+        end,
+    },
+    {
+        "WhoIsSethDaniel/mason-tool-installer.nvim",
+        dependencies = {
+            "mason-org/mason.nvim",
+        },
+        config = function()
+            -- Install all mason tools
+            require("mason-tool-installer").setup {
+                ensure_installed = languages_mason,
+                auto_update = true,
+            }
+        end,
+    },
 }

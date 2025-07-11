@@ -75,6 +75,13 @@ vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>",
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { silent = true, noremap = true, desc = "Code action" })
 vim.keymap.set("n", "<leader>k", vim.lsp.buf.hover, { silent = true, noremap = true, desc = "Show Docs" })
 -- vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts_l)
+--
+vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float,
+    { silent = true, noremap = true, desc = "Show Error/Diagnostic" })
+vim.keymap.set("n", "<leader>E", vim.diagnostic.setloclist,
+    { silent = true, noremap = true, desc = "Show All Diagnostics" })
+vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { silent = true, noremap = true, desc = "Next Diagnostic" })
+vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { silent = true, noremap = true, desc = "Previous Diagnostic" })
 
 -- Rebind ctrl+c to act as 'Esc' in all modes (except command-line and terminal mode)
 vim.keymap.set({ "n", "i", "v", "x", "s" }, "<C-c>", "<Esc>", { noremap = true, silent = true })
