@@ -2,11 +2,11 @@
 require("config.lazy")
 
 -- custom modules
-require("custom.comment")
 
 -- theme
-vim.cmd("colorscheme zaibatsu")
-vim.cmd("colorscheme tokyonight-night")
+-- vim.cmd("colorscheme zaibatsu")
+-- vim.cmd("colorscheme tokyonight-night")
+vim.cmd("colorscheme onedark")
 
 -- vim options
 vim.opt.number = true
@@ -34,20 +34,23 @@ vim.opt.shiftwidth = 0 -- set to 0 to default to tabstop value
 
 vim.opt.termguicolors = true
 
+-- use system clipboard
+vim.opt.clipboard = "unnamedplus"
+
 -- prevent jumping when lsp is reloading
 vim.opt.signcolumn = "yes"
 
 -- TODO: what is this?
 vim.opt.cursorlineopt = 'both' -- to enable cursorline!
 
--- bindings
-
 -- Writing files and closing buffers
 vim.keymap.set({ "n", "i", "v" }, "<C-s>", "<cmd>w<cr>", { noremap = true, silent = true })
 vim.keymap.set({ "n", "i", "v" }, "<C-q>", "<cmd>q<cr>", { noremap = true, silent = true })
+vim.keymap.set("n", "<leader>x", "<cmd>bd<cr>", { desc = "Unload buffer" })
 vim.keymap.set("n", "<leader>q", "<cmd>q<cr>", { desc = "Close buffer" })
 vim.keymap.set("n", "<leader>wq", "<cmd>wq<cr>", { desc = "Write buffer and close" })
 vim.keymap.set("n", "<leader>ww", "<cmd>w<cr>", { desc = "Write buffer" })
+vim.keymap.set('n', '<leader>wa', ':wa<CR>', { desc = 'Write all buffers' })
 
 -- Window navigation
 vim.keymap.set({ "n", "i", "v" }, "<C-h>", '<C-w>h', { noremap = true, silent = true })

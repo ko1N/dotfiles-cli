@@ -108,7 +108,7 @@ alias rm="rm -i"
 alias grep="grep --color=auto"
 
 # Overrides (in case the tool is installed)
-if command -v z >/dev/null 2>&1
+if command -v zoxide >/dev/null 2>&1
     alias cd="z"
 end
 if command -v fd >/dev/null 2>&1
@@ -136,6 +136,7 @@ alias ansible-galaxy='ansible-log run ansible-galaxy'
 source $HOME/.config/fish/functions/fzf_navigation.fish
 source $HOME/.config/fish/functions/fzf_tmux.fish
 source $HOME/.config/fish/functions/fzf_git.fish
+source $HOME/.config/fish/functions/fzf_pyenv.fish
 
 # completions
 zoxide init fish | source

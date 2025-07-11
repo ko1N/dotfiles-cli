@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""
+Ed25519 Key Generator with Mnemonic Recovery
+Generates an Ed25519 key pair for signing and provides mnemonic words for recovery.
+"""
+
+import os
+import sys
+import hashlib
+import argparse
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+from mnemonic import Mnemonic
+
+def generate_ed25519_key_with_mnemonic():
+    """
+    Generate an Ed25519 key pair from a mnemonic phrase.
+    Returns the private key, public key, and mnemonic phrase.
+    """
+    # Generate a mnemonic phrase (24 words)
+    mnemo = Mnemonic("english")
+    mnemonic_phrase = mnemo.generate(strength=256)  # 256 bits = 24 words
+    
+    # Convert mnemonic to seed
+    seed = mnemo.to_seed(mnemonic_phrase)
+    
+    # Use the first 32 bytes of the seed as the private key
+    private_key_bytes = seed[:32]
+    
+    # Create Ed25519 private key from the seed
+    private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
+    
+    # Get the corresponding public key
+    public_key = private_key.public_key()
+    
+    return private_key, public_key, mnemonic_phrase
+
+def recreate_key_from_mnemonic(mnemonic_phrase):
+    """
+    Recreate Ed25519 key pair from a mnemonic phrase.
+    """
+    mnemo = Mnemonic("english")
+    
+    # Validate mnemonic
+    if not mnemo.check(mnemonic_phrase):
+        raise ValueError("Invalid mnemonic phrase")
+    
+    # Convert mnemonic to seed
+    seed = mnemo.to_seed(mnemonic_phrase)
+    
+    # Use the first 32 bytes of the seed as the private key
+    private_key_bytes = seed[:32]
+    
+    # Create Ed25519 private key from the seed
+    private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
+    
+    # Get the corresponding public key
+    public_key = private_key.public_key()
+    
+    return private_key, public_key
+
+def serialize_keys(private_key, public_key):
+    """
+    Serialize keys to various formats for storage and use.
+    """
+    # Private key serialization
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    
+    private_raw = private_key.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    
+    # Public key serialization
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    
+    public_raw = public_key.public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw
+    )
+    
+    return {
+        'private_pem': private_pem,
+        'private_raw': private_raw,
+        'public_pem': public_pem,
+        'public_raw': public_raw
+    }
+
+def save_keys_to_files(keys, mnemonic_phrase):
+    """
+    Save keys and mnemonic to files.
+    """
+    # Save private key (PEM format)
+    with open('ed25519_private_key.pem', 'wb') as f:
+        f.write(keys['private_pem'])
+    
+    # Save public key (PEM format)
+    with open('ed25519_public_key.pem', 'wb') as f:
+        f.write(keys['public_pem'])
+    
+    # Save mnemonic phrase
+    with open('mnemonic_recovery.txt', 'w') as f:
+        f.write(f"Mnemonic Recovery Phrase:\n{mnemonic_phrase}\n\n")
+        f.write("IMPORTANT: Keep this phrase secure and private!\n")
+        f.write("Anyone with this phrase can recover your private key.\n")
+
+def demonstrate_signing(private_key, public_key):
+    """
+    Demonstrate signing and verification with the generated keys.
+    """
+    # Message to sign
+    message = b"Hello, this is a test message for Ed25519 signing!"
+    
+    # Sign the message
+    signature = private_key.sign(message)
+    
+    # Verify the signature
+    try:
+        public_key.verify(signature, message)
+        print("✓ Signature verification successful!")
+        return True
+    except Exception as e:
+        print(f"✗ Signature verification failed: {e}")
+        return False
+
+def generate_new_key():
+    """
+    Generate a new Ed25519 key pair with mnemonic.
+    """
+    print("Generating new Ed25519 key pair...")
+    print("=" * 50)
+    
+    # Generate key pair and mnemonic
+    private_key, public_key, mnemonic_phrase = generate_ed25519_key_with_mnemonic()
+    
+    # Serialize keys
+    keys = serialize_keys(private_key, public_key)
+    
+    # Display information
+    print("\n🔑 MNEMONIC RECOVERY PHRASE (24 words):")
+    print("-" * 40)
+    print(f"{mnemonic_phrase}")
+    print("\n⚠️  IMPORTANT: Store this phrase securely!")
+    print("   Anyone with this phrase can recover your private key.")
+    
+    print("\n📋 KEY INFORMATION:")
+    print("-" * 20)
+    print(f"Private key (hex): {keys['private_raw'].hex()}")
+    print(f"Public key (hex):  {keys['public_raw'].hex()}")
+    
+    print("\n🔐 PEM FORMAT KEYS:")
+    print("-" * 18)
+    print("Private Key (PEM):")
+    print(keys['private_pem'].decode('utf-8'))
+    
+    print("Public Key (PEM):")
+    print(keys['public_pem'].decode('utf-8'))
+    
+    # Save to files
+    save_keys_to_files(keys, mnemonic_phrase)
+    print("💾 Keys saved to files:")
+    print("   - ed25519_private_key.pem")
+    print("   - ed25519_public_key.pem")
+    print("   - mnemonic_recovery.txt")
+    
+    # Demonstrate signing
+    print("\n🖊️  SIGNING DEMONSTRATION:")
+    print("-" * 25)
+    demonstrate_signing(private_key, public_key)
+
+def recover_key_from_mnemonic():
+    """
+    Recover Ed25519 key pair from user-provided mnemonic.
+    """
+    print("Recovering Ed25519 key pair from mnemonic...")
+    print("=" * 50)
+    
+    print("Please enter your 24-word mnemonic phrase:")
+    print("(You can enter it on multiple lines, press Enter twice when done)")
+    
+    mnemonic_lines = []
+    while True:
+        line = input().strip()
+        if line == "":
+            break
+        mnemonic_lines.append(line)
+    
+    mnemonic_phrase = " ".join(mnemonic_lines).strip()
+    
+    if not mnemonic_phrase:
+        print("❌ No mnemonic phrase provided.")
+        return
+    
+    try:
+        # Recreate keys from mnemonic
+        private_key, public_key = recreate_key_from_mnemonic(mnemonic_phrase)
+        
+        # Serialize keys
+        keys = serialize_keys(private_key, public_key)
+        
+        print("\n✅ Successfully recovered keys from mnemonic!")
+        
+        print("\n📋 RECOVERED KEY INFORMATION:")
+        print("-" * 30)
+        print(f"Private key (hex): {keys['private_raw'].hex()}")
+        print(f"Public key (hex):  {keys['public_raw'].hex()}")
+        
+        print("\n🔐 PEM FORMAT KEYS:")
+        print("-" * 18)
+        print("Private Key (PEM):")
+        print(keys['private_pem'].decode('utf-8'))
+        
+        print("Public Key (PEM):")
+        print(keys['public_pem'].decode('utf-8'))
+        
+        # Ask if user wants to save recovered keys
+        save_choice = input("\n💾 Do you want to save the recovered keys to files? (y/n): ").lower()
+        if save_choice in ['y', 'yes']:
+            save_keys_to_files(keys, mnemonic_phrase)
+            print("Keys saved to files:")
+            print("   - ed25519_private_key.pem")
+            print("   - ed25519_public_key.pem")
+            print("   - mnemonic_recovery.txt")
+        
+        # Demonstrate signing
+        print("\n🖊️  SIGNING DEMONSTRATION:")
+        print("-" * 25)
+        demonstrate_signing(private_key, public_key)
+        
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Ed25519 Key Generator with Mnemonic Recovery",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python script.py generate    # Generate new key pair
+  python script.py recover     # Recover from mnemonic
+  python script.py             # Interactive mode
+        """
+    )
+    
+    parser.add_argument(
+        'action',
+        nargs='?',
+        choices=['generate', 'recover'],
+        help='Action to perform: generate new key or recover from mnemonic'
+    )
+    
+    args = parser.parse_args()
+    
+    print("Ed25519 Key Generator with Mnemonic Recovery")
+    print("=" * 50)
+    
+    try:
+        if args.action == 'generate':
+            generate_new_key()
+        elif args.action == 'recover':
+            recover_key_from_mnemonic()
+        else:
+            # Interactive mode
+            print("\nChoose an option:")
+            print("1. Generate new key pair")
+            print("2. Recover from mnemonic phrase")
+            
+            choice = input("\nEnter your choice (1 or 2): ").strip()
+            
+            if choice == '1':
+                print()
+                generate_new_key()
+            elif choice == '2':
+                print()
+                recover_key_from_mnemonic()
+            else:
+                print("Invalid choice. Please enter 1 or 2.")
+                
+    except KeyboardInterrupt:
+        print("\n\nOperation cancelled by user.")
+    except ImportError as e:
+        print(f"Error: Missing required library - {e}")
+        print("\nPlease install required packages:")
+        print("pip install cryptography mnemonic")
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    main()

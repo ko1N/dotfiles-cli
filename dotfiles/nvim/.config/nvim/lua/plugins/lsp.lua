@@ -21,7 +21,7 @@ return {
                 "gopls",
                 "zls",
                 "glsl_analyzer",
-            }
+            },
         },
         dependencies = {
             { "mason-org/mason.nvim", opts = {} },

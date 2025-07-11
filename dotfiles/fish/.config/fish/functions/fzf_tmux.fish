@@ -14,36 +14,35 @@ function tmc -d "Create or attach to current folders session"
     # Sanitize the session name (replace problematic characters)
     set session_name (string replace -a " " "_" $session_name)
     
-    # Check if a session with this name already exists
-    if tmux has-session -t $session_name 2>/dev/null
-        echo "Session '$session_name' already exists. Attaching..."
-        # TODO: check if $TMUX is set
-        tmux attach-session -t $session_name
-    else
+    # Check if we should create the session or if it already exists
+    if not tmux has-session -t $session_name 2>/dev/null
         echo "Creating new session '$session_name'..."
         tmux new-session -d -s $session_name
-        # tmux new-session -t $session_name -s "$session_name"--mirror
-        # TODO: check if $TMUX is set
+    end
+
+    if not test -n "$TMUX"
         tmux attach-session -t $session_name
+    else
+        tmux switch-client -t $session_name
     end
 end
 
 function tma -d "Attach tmux session"
-  if test -n "$TMUX"
-    tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux switch-client -t "$result"
+  if not test -n "$TMUX"
+      tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux attach -t "$result"
   else
-    tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux attach -t "$result"
+      tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux switch-client -t "$result"
   end
 end
 
 function tmm -d "Mirror tmux session"
-  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux new-session -t "$result" -s "$result"--mirror; and tmux switch-client -t "$result"--mirror
+    tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux new-session -t "$result" -s "$result"--mirror; and tmux switch-client -t "$result"--mirror
 end
 
 function tmk -d "Kill tmux session"
-  tmux list-sessions -F "#{session_name}" | fzf | read -l result; and tmux kill-session -t "$result"
+    tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux kill-session -t "$result"
 end
 
 function tmd -d "Detach tmux session"
-  tmux detach
+    tmux detach
 end
