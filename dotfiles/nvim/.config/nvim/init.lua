@@ -2,6 +2,7 @@
 require("config.lazy")
 
 -- custom modules
+require("custom.resize").setup()
 
 -- theme
 -- vim.cmd("colorscheme zaibatsu")
@@ -58,6 +59,8 @@ vim.keymap.set({ "n", "i", "v" }, "<C-j>", '<C-w>j', { noremap = true, silent = 
 vim.keymap.set({ "n", "i", "v" }, "<C-k>", '<C-w>k', { noremap = true, silent = true })
 vim.keymap.set({ "n", "i", "v" }, "<C-l>", '<C-w>l', { noremap = true, silent = true })
 
+-- TODO: window resize
+
 -- Make visual mode paste replace selected text without overwriting register
 vim.keymap.set("x", "p", '"_dP', { noremap = true, silent = true })
 
@@ -87,8 +90,12 @@ vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { silent = true, noremap = t
 vim.keymap.set({ "n", "i", "v", "x", "s" }, "<C-c>", "<Esc>", { noremap = true, silent = true })
 
 -- Undo search highlight
---vim.keymap.set({ "n", "i" }, "<Esc>", "<cmd>noh<cr>", { noremap = false, silent = true })
---vim.keymap.set({ "n", "i" }, "<C-c>", "<cmd>noh<cr>", { noremap = false, silent = true })
+vim.keymap.set({ "n" }, "<Esc>", "<cmd>noh<cr>", { noremap = false, silent = true })
+vim.keymap.set({ "n" }, "<C-c>", "<cmd>noh<cr>", { noremap = false, silent = true })
 
 -- Prevent escape from being remapped in :term windows
 vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]])
+
+-- Plugin configuration
+-- vim.keymap.set("n", "<C-e>", "<cmd>NvimTreeToggle<CR>", { silent = true, noremap = true, desc = "Toggle Neotree" })
+vim.keymap.set("n", "<leader>o", "<cmd>NvimTreeToggle<CR>", { silent = true, noremap = true, desc = "Toggle Neotree" })

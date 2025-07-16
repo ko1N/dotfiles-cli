@@ -38,6 +38,34 @@ local languages = {
     -- { ts = "tex",        lsp = "texlab",              fmt = "latexindent" },
 }
 
+-- Custom LSP configuration
+local lsp_configs = {
+    rust_analyzer = {
+        settings = {
+            ["rust-analyzer"] = {
+                cargo = {
+                    features = "all",
+                },
+                checkOnSave = {
+                    command = "clippy",
+                },
+            },
+        },
+    },
+    gopls = {
+        settings = {
+            gopls = {
+                completeUnimported = true,
+                usePlaceholders = true,
+                analyses = {
+                    shadow = true,
+                    unusedparams = true,
+                },
+            },
+        },
+    },
+}
+
 local languages_treesitter = {}
 local languages_mason = {}
 
@@ -109,32 +137,14 @@ return {
             "mason-org/mason.nvim",
             "neovim/nvim-lspconfig",
         },
-        opts = {
-            -- Lsps are installed via mason-tool-installer as well
-            -- ensure_installed = languages_lsp,
-            automatic_enable = true,
-        },
         config = function()
-            -- Configure LSP servers with custom settings
-            require("lspconfig").rust_analyzer.setup({
-                settings = {
-                    ["rust-analyzer"] = {
-                        cargo = {
-                            features = "all",
-                        },
-                        checkOnSave = {
-                            command = "clippy",
-                        },
-                    },
-                    gopls = {
-                        completeUnimported = true,
-                        usePlaceholders = true,
-                        analyses = {
-                            shadow = true,
-                            unusedparams = true,
-                        },
-                    },
-                },
+            require("mason-lspconfig").setup({
+                handlers = {
+                    function(server_name)
+                        local config = lsp_configs[server_name] or {}
+                        require("lspconfig")[server_name].setup(config)
+                    end,
+                }
             })
         end,
     },
