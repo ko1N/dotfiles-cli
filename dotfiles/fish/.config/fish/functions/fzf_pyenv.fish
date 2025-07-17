@@ -1,6 +1,6 @@
 function pyenvc -d "Create new python environment using pyenv"
     # Parse arguments
-    set -l version ""
+    set -l py_version ""
     set -l env_name ""
     set -l i 1
     
@@ -9,12 +9,12 @@ function pyenvc -d "Create new python environment using pyenv"
             case --version -v
                 set i (math $i + 1)
                 if test $i -le (count $argv)
-                    set version $argv[$i]
+                    set py_version $argv[$i]
                 else
                     echo "Error: --version requires a value"
                     return 1
                 end
-            case -*
+            case '-*'
                 echo "Error: Unknown option $argv[$i]"
                 return 1
             case '*'
@@ -36,15 +36,14 @@ function pyenvc -d "Create new python environment using pyenv"
     end
     
     # Create the virtual environment
-    if test -n "$version"
-        echo "Creating Python $version environment: $env_name"
-        pyenv virtualenv $version $env_name
+    if test -n "$py_version"
+        echo "Creating Python $py_version environment: $env_name"
+        pyenv virtualenv $py_version $env_name
     else
         echo "Creating Python environment: $env_name (using default Python version)"
         pyenv virtualenv $env_name
     end
 end
-
 function pyenvl -d "Load python environment using pyenv"
     ls $HOME/.pyenv/versions/*/bin/activate | \
         cut -d'/' -f6 | \

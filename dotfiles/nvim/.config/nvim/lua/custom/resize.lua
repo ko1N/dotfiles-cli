@@ -1,5 +1,3 @@
--- Tmux-style window resizing for Neovim
-
 local M = {}
 
 M.resize_amount = 6
@@ -118,7 +116,7 @@ end
 
 function M.setup(opts)
     opts = opts or {}
-    M.resize_amount = opts.resize_amount or 5
+    M.resize_amount = opts.resize_amount or 6
 
     local keymap_opts = { noremap = true, silent = true }
 

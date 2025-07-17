@@ -2,11 +2,11 @@
 require("config.lazy")
 
 -- custom modules
+require("custom.autosave").setup()
 require("custom.resize").setup()
+require("custom.split").setup()
 
 -- theme
--- vim.cmd("colorscheme zaibatsu")
--- vim.cmd("colorscheme tokyonight-night")
 vim.cmd("colorscheme onedark")
 
 -- vim options
@@ -95,7 +95,3 @@ vim.keymap.set({ "n" }, "<C-c>", "<cmd>noh<cr>", { noremap = false, silent = tru
 
 -- Prevent escape from being remapped in :term windows
 vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]])
-
--- Plugin configuration
--- vim.keymap.set("n", "<C-e>", "<cmd>NvimTreeToggle<CR>", { silent = true, noremap = true, desc = "Toggle Neotree" })
-vim.keymap.set("n", "<leader>o", "<cmd>NvimTreeToggle<CR>", { silent = true, noremap = true, desc = "Toggle Neotree" })
