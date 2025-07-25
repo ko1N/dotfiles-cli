@@ -111,228 +111,182 @@ get_run_files() {
         sort -rn | cut -d' ' -f2- || true
 }
 
-# Function to check if a task should be shown (without displaying it)
-process_task_check() {
-    local strip_colors_flag="$1"
-    shift
-    local task_lines=("$@")
-    local has_changes=false
-    local has_errors=false
-    
-    # Analyze task lines to determine status
-    for line in "${task_lines[@]}"; do
-        # Strip colors for pattern matching
-        local clean_line
-        clean_line=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g')
-        
-        if [[ "$clean_line" =~ (changed|failed|fatal|UNREACHABLE): ]]; then
-            if [[ "$clean_line" =~ changed: ]]; then
-                has_changes=true
-            elif [[ "$clean_line" =~ (failed|fatal|UNREACHABLE): ]]; then
-                has_errors=true
-            fi
-        elif [[ "$clean_line" =~ ^---\ before ]] || [[ "$clean_line" =~ ^\+\+\+\ after ]] || [[ "$clean_line" =~ ^@@.*@@ ]]; then
-            # If we see diff content, this task likely has changes
-            has_changes=true
-        fi
-    done
-    
-    # Return 0 (true) if task should be shown
-    if [[ "$has_changes" == true || "$has_errors" == true ]]; then
-        return 0
-    fi
-    
-    return 1
-}
-
-# Function to process a completed task (simplified - just pass through)
-process_task() {
-    local strip_colors_flag="$1"
-    shift
-    local task_lines=("$@")
-    
-    for line in "${task_lines[@]}"; do
-        if [ "$strip_colors_flag" = true ]; then
-            echo "$line" | sed 's/\x1b\[[0-9;]*m//g'
-        else
-            echo "$line"
-        fi
-    done
-    
-    # Add spacing after task only if the last line wasn't already empty
-    local last_line=""
-    if [[ ${#task_lines[@]} -gt 0 ]]; then
-        last_line="${task_lines[-1]}"
-        # Strip colors for empty line check
-        local clean_last_line
-        clean_last_line=$(echo "$last_line" | sed 's/\x1b\[[0-9;]*m//g')
-        if [[ -n "$clean_last_line" && ! "$clean_last_line" =~ ^[[:space:]]*$ ]]; then
-            echo ""  # Add spacing after task
-        fi
-    fi
-    return 0
-}
-
-# Unified function to process ansible output
+# UNIFIED function to process ansible output - handles ALL modes (pipe, run, log)
 process_ansible_output() {
     local diff_only="$1"
     local strip_colors_flag="$2"
     
-    # For non-diff mode, just pass everything through unchanged
+    # Temporarily disable set -e to avoid issues with array operations
+    set +e
+    
+    # For non-diff mode, just pass everything through with color handling
     if [[ "$diff_only" == false ]]; then
         while IFS= read -r line; do
             if [ "$strip_colors_flag" = true ]; then
-                # Strip colors only when output is not to TTY
                 echo "$line" | sed 's/\x1b\[[0-9;]*m//g'
             else
-                # Pass through unchanged with original ansible colors
                 echo "$line"
             fi
         done
+        set -e
         return
     fi
     
-    # For diff mode, filter but keep original ansible colors
+    # For diff mode, collect all input first
+    local all_lines=()
+    while IFS= read -r line; do
+        all_lines+=("$line")
+    done
+    
+    # Process lines for diff mode - show only tasks with changes/errors
     local current_play=""
     local play_shown=false
-    local task_lines=()
-    local in_task=false
-    local in_recap=false
-    local in_error_block=false
+    local i=0
     
-    while IFS= read -r line; do
-        # Strip colors for pattern matching but keep original line for display
+    # First pass: handle pre-structured errors/warnings
+    while [[ $i -lt ${#all_lines[@]} ]]; do
+        local line="${all_lines[$i]}"
         local clean_line
         clean_line=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g')
         
-        # Check if we're entering or exiting an error block
-        if [[ "$clean_line" =~ (^|.*\[0;[0-9]+m)(failed|fatal|UNREACHABLE): ]]; then
-            in_error_block=true
-        elif [[ "$clean_line" =~ ^(TASK|PLAY|ok:|changed:|skipping:|PLAY\ RECAP) ]] || [[ "$clean_line" =~ ^=== ]]; then
-            in_error_block=false
+        # Stop when we hit structured output
+        if [[ "$clean_line" =~ ^PLAY\ \[.*\] ]] || [[ "$clean_line" =~ ^TASK\ \[.*\] ]] || [[ "$clean_line" =~ ^PLAY\ RECAP ]]; then
+            break
         fi
         
-        if [[ "$clean_line" =~ ^PLAY\ \[.*\] ]]; then
-            # Process any pending task before starting new play
-            if [[ "$in_task" == true && ${#task_lines[@]} -gt 0 ]]; then
-                if process_task_check "$strip_colors_flag" "${task_lines[@]}"; then
-                    # Show play header if not shown yet
-                    if [[ "$play_shown" == false && -n "$current_play" ]]; then
-                        if [ "$strip_colors_flag" = true ]; then
-                            echo "$current_play" | sed 's/\x1b\[[0-9;]*m//g'
-                        else
-                            echo "$current_play"
-                        fi
-                        echo ""
-                    fi
-                    play_shown=true
-                    # Show the task
-                    process_task "$strip_colors_flag" "${task_lines[@]}"
-                fi
-                task_lines=()
-                in_task=false
+        # Show error/warning lines that appear before structured output
+        if [[ "$clean_line" =~ ^ERROR! ]] || [[ "$clean_line" =~ ^FATAL: ]] || [[ "$clean_line" =~ ^WARNING: ]] || [[ "$clean_line" =~ (failed|fatal|UNREACHABLE): ]]; then
+            if [ "$strip_colors_flag" = true ]; then
+                echo "$clean_line"
+            else
+                echo "$line"
             fi
-            
-            in_recap=false
-            current_play="$line"  # Keep original line with colors
+        fi
+        ((i++))
+    done
+    
+    # Second pass: process structured output (PLAY/TASK/RECAP sections)
+    while [[ $i -lt ${#all_lines[@]} ]]; do
+        local line="${all_lines[$i]}"
+        local clean_line
+        clean_line=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g')
+        
+        if [[ "$clean_line" =~ ^PLAY\ \[.*\] ]]; then
+            # New play - reset state
+            current_play="$line"
             play_shown=false
+            ((i++))
             
         elif [[ "$clean_line" =~ ^TASK\ \[.*\] ]]; then
-            # Process any pending task before starting new one
-            if [[ "$in_task" == true && ${#task_lines[@]} -gt 0 ]]; then
-                if process_task_check "$strip_colors_flag" "${task_lines[@]}"; then
-                    # Show play header if not shown yet
-                    if [[ "$play_shown" == false && -n "$current_play" ]]; then
-                        if [ "$strip_colors_flag" = true ]; then
-                            echo "$current_play" | sed 's/\x1b\[[0-9;]*m//g'
-                        else
-                            echo "$current_play"
-                        fi
-                        echo ""
-                        play_shown=true
+            # Process a complete task
+            local task_lines=("$line")  # Start with task header
+            ((i++))
+            
+            # Collect all lines belonging to this task
+            while [[ $i -lt ${#all_lines[@]} ]]; do
+                local task_line="${all_lines[$i]}"
+                local clean_task_line
+                clean_task_line=$(echo "$task_line" | sed 's/\x1b\[[0-9;]*m//g')
+                
+                # Stop if we hit another TASK, PLAY, or PLAY RECAP
+                if [[ "$clean_task_line" =~ ^PLAY\ \[.*\] ]] || [[ "$clean_task_line" =~ ^TASK\ \[.*\] ]] || [[ "$clean_task_line" =~ ^PLAY\ RECAP ]]; then
+                    break
+                fi
+                
+                # Add non-empty lines to task
+                if [[ -n "$clean_task_line" && ! "$clean_task_line" =~ ^[[:space:]]*$ ]]; then
+                    task_lines+=("$task_line")
+                fi
+                ((i++))
+            done
+            
+            # Check if this task has changes or errors
+            local has_changes=false
+            local has_errors=false
+            
+            for task_line in "${task_lines[@]}"; do
+                local clean_task_line
+                clean_task_line=$(echo "$task_line" | sed 's/\x1b\[[0-9;]*m//g')
+                
+                if [[ "$clean_task_line" =~ (changed|failed|fatal|UNREACHABLE): ]]; then
+                    if [[ "$clean_task_line" =~ changed: ]]; then
+                        has_changes=true
+                    elif [[ "$clean_task_line" =~ (failed|fatal|UNREACHABLE): ]]; then
+                        has_errors=true
                     fi
-                    # Show the task
-                    process_task "$strip_colors_flag" "${task_lines[@]}"
+                elif [[ "$clean_task_line" =~ ^---\ before ]] || [[ "$clean_task_line" =~ ^\+\+\+\ after ]] || [[ "$clean_task_line" =~ ^@@.*@@ ]]; then
+                    has_changes=true
+                fi
+            done
+            
+            # Show task if it has changes or errors
+            if [[ "$has_changes" == true || "$has_errors" == true ]]; then
+                # Show play header if not shown yet
+                if [[ "$play_shown" == false && -n "$current_play" ]]; then
+                    if [ "$strip_colors_flag" = true ]; then
+                        echo "$current_play" | sed 's/\x1b\[[0-9;]*m//g'
+                    else
+                        echo "$current_play"
+                    fi
+                    echo ""
+                    play_shown=true
+                fi
+                
+                # Show the task
+                for task_line in "${task_lines[@]}"; do
+                    if [ "$strip_colors_flag" = true ]; then
+                        echo "$task_line" | sed 's/\x1b\[[0-9;]*m//g'
+                    else
+                        echo "$task_line"
+                    fi
+                done
+                
+                # Add spacing after task only if the last line wasn't already empty
+                local last_line=""
+                if [[ ${#task_lines[@]} -gt 0 ]]; then
+                    last_line="${task_lines[-1]}"
+                    local clean_last_line
+                    clean_last_line=$(echo "$last_line" | sed 's/\x1b\[[0-9;]*m//g')
+                    if [[ -n "$clean_last_line" && ! "$clean_last_line" =~ ^[[:space:]]*$ ]]; then
+                        echo ""
+                    fi
                 fi
             fi
-            
-            in_recap=false
-            task_lines=("$line")  # Keep original line with colors
-            in_task=true
             
         elif [[ "$clean_line" =~ ^PLAY\ RECAP ]]; then
-            # Process any pending task before recap
-            if [[ "$in_task" == true && ${#task_lines[@]} -gt 0 ]]; then
-                if process_task_check "$strip_colors_flag" "${task_lines[@]}"; then
-                    # Show play header if not shown yet
-                    if [[ "$play_shown" == false && -n "$current_play" ]]; then
-                        if [ "$strip_colors_flag" = true ]; then
-                            echo "$current_play" | sed 's/\x1b\[[0-9;]*m//g'
-                        else
-                            echo "$current_play"
-                        fi
-                        echo ""
-                        play_shown=true
-                    fi
-                    # Show the task
-                    process_task "$strip_colors_flag" "${task_lines[@]}"
-                fi
-                task_lines=()
-                in_task=false
-            fi
-            
-            # Always show PLAY RECAP
+            # Always show PLAY RECAP section
             if [ "$strip_colors_flag" = true ]; then
                 echo "$line" | sed 's/\x1b\[[0-9;]*m//g'
             else
                 echo "$line"
             fi
-            current_play=""
-            play_shown=false
-            in_recap=true
+            ((i++))
+            
+            # Show all recap lines until end of input
+            while [[ $i -lt ${#all_lines[@]} ]]; do
+                local recap_line="${all_lines[$i]}"
+                local clean_recap_line
+                clean_recap_line=$(echo "$recap_line" | sed 's/\x1b\[[0-9;]*m//g')
+                
+                # Show host summary lines and other recap content
+                if [[ -n "$clean_recap_line" && ! "$clean_recap_line" =~ ^[[:space:]]*$ ]]; then
+                    if [ "$strip_colors_flag" = true ]; then
+                        echo "$clean_recap_line"
+                    else
+                        echo "$recap_line"
+                    fi
+                fi
+                ((i++))
+            done
             
         else
-            # Handle PLAY RECAP host lines and other content
-            if [[ "$in_recap" == true ]]; then
-                # Always show recap-related lines
-                if [[ "$clean_line" =~ ^[a-zA-Z0-9_.-]+\ *: ]] && [[ "$clean_line" =~ (ok|changed|unreachable|failed|skipped|rescued|ignored)= ]]; then
-                    if [ "$strip_colors_flag" = true ]; then
-                        echo "$clean_line"
-                    else
-                        echo "$line"
-                    fi
-                elif [[ -n "$clean_line" && ! "$clean_line" =~ ^[[:space:]]*$ ]]; then
-                    if [ "$strip_colors_flag" = true ]; then
-                        echo "$clean_line"
-                    else
-                        echo "$line"
-                    fi
-                fi
-            elif [[ "$in_task" == true ]]; then
-                # Add line to current task - include empty lines if we're in an error block
-                if [[ -n "$clean_line" && ! "$clean_line" =~ ^[[:space:]]*$ ]] || [ "$in_error_block" = true ]; then
-                    task_lines+=("$line")  # Keep original line with colors
-                fi
-            fi
+            # Skip any other lines
+            ((i++))
         fi
     done
     
-    # Process any final pending task
-    if [[ "$in_task" == true && ${#task_lines[@]} -gt 0 ]]; then
-        if process_task_check "$strip_colors_flag" "${task_lines[@]}"; then
-            # Show play header if not shown yet
-            if [[ "$play_shown" == false && -n "$current_play" ]]; then
-                if [ "$strip_colors_flag" = true ]; then
-                    echo "$current_play" | sed 's/\x1b\[[0-9;]*m//g'
-                else
-                    echo "$current_play"
-                fi
-                echo ""
-            fi
-            # Show the task
-            process_task "$strip_colors_flag" "${task_lines[@]}"
-        fi
-    fi
+    # Re-enable set -e
+    set -e
 }
 
 # Function to handle piped input
@@ -706,17 +660,8 @@ show_log() {
         fi
     done < "$log_file"
     
-    # Process the ansible output (with or without diff filtering)
-    if [ "$diff_only" = true ]; then
-        cat "$temp_file" | process_ansible_output "$diff_only" "$strip_colors_flag"
-    else
-        # Show raw output
-        if [ "$strip_colors_flag" = true ]; then
-            cat "$temp_file" | sed 's/\x1b\[[0-9;]*m//g'
-        else
-            cat "$temp_file"
-        fi
-    fi
+    # Process the ansible output using the unified function
+    cat "$temp_file" | process_ansible_output "$diff_only" "$strip_colors_flag"
     
     # Show success/failure message
     echo ""

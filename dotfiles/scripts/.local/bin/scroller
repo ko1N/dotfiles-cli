@@ -1,0 +1,443 @@
+#!/bin/bash
+
+# Command Output Wrapper with Timer and Scrollable Display (Fancy Version)
+# Usage: ./wrapper.sh [--max-lines N] <command> [args...]
+# Features: Window resize handling, keyboard input cleanup, configurable display size
+
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m' # No Color
+
+# Fancy border characters (rounded corners)
+TOP_LEFT="╭"
+TOP_RIGHT="╮"
+BOTTOM_LEFT="╰"
+BOTTOM_RIGHT="╯"
+HORIZONTAL="─"
+VERTICAL="│"
+TEE_DOWN="┬"
+TEE_UP="┴"
+TEE_RIGHT="├"
+TEE_LEFT="┤"
+
+# Parse arguments
+MAX_LINES=""
+NO_CLEAR=0
+COMMAND_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    --max-lines)
+        MAX_LINES="$2"
+        if ! [[ "$MAX_LINES" =~ ^[0-9]+$ ]] || [ "$MAX_LINES" -lt 1 ]; then
+            echo "Error: --max-lines must be a positive integer"
+            exit 1
+        fi
+        shift 2
+        ;;
+    --max-lines=*)
+        MAX_LINES="${1#*=}"
+        if ! [[ "$MAX_LINES" =~ ^[0-9]+$ ]] || [ "$MAX_LINES" -lt 1 ]; then
+            echo "Error: --max-lines must be a positive integer"
+            exit 1
+        fi
+        shift
+        ;;
+    --no-clear)
+        NO_CLEAR=1
+        shift
+        ;;
+    *)
+        COMMAND_ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
+
+# Check if command is provided
+if [ ${#COMMAND_ARGS[@]} -eq 0 ]; then
+    echo "Usage: $0 [--max-lines N] [--no-clear] <command> [args...]"
+    echo "Options:"
+    echo "  --max-lines N    Limit display to N lines (default: full screen)"
+    echo "  --no-clear       Don't clear the screen before displaying output"
+    echo "Examples:"
+    echo "  $0 tail -f /var/log/syslog"
+    echo "  $0 --max-lines 10 ping google.com"
+    echo "  $0 --max-lines=5 --no-clear ls -la"
+    exit 1
+fi
+
+# Store the command and arguments
+COMMAND="${COMMAND_ARGS[*]}"
+LOGFILE=$(mktemp)
+TIMER_FILE=$(mktemp)
+STOP_FLAG=$(mktemp)
+REDRAW_FLAG=$(mktemp)
+
+# Initialize redraw flag
+echo "0" >"$REDRAW_FLAG"
+
+# Track command PID and exit code
+COMMAND_PID=""
+COMMAND_EXIT_CODE=0
+
+# Interrupt handler - forward to subprocess
+handle_interrupt() {
+    if [ -n "$COMMAND_PID" ]; then
+        # Forward SIGINT to the command
+        kill -INT "$COMMAND_PID" 2>/dev/null
+        # Wait for it to finish and capture exit code
+        wait "$COMMAND_PID" 2>/dev/null
+        COMMAND_EXIT_CODE=$?
+    else
+        COMMAND_EXIT_CODE=130  # Standard exit code for SIGINT
+    fi
+    cleanup
+}
+
+# Cleanup function
+cleanup() {
+    echo "1" >"$STOP_FLAG"
+    rm -f "$LOGFILE" "$TIMER_FILE" "$STOP_FLAG" "$REDRAW_FLAG" "${LOGFILE}.exitcode"
+    # Kill any background processes
+    jobs -p | xargs -r kill 2>/dev/null
+    # Restore cursor and clear screen formatting
+    tput cnorm
+    tput sgr0
+    # Only clear screen if we were clearing it during operation
+    if [ "$NO_CLEAR" = "0" ]; then
+        clear
+    fi
+    # Exit with the command's exit code
+    exit $COMMAND_EXIT_CODE
+}
+
+# Signal handler for keyboard input (force redraw to clear any stray characters)
+handle_keyboard() {
+    echo "1" >"$REDRAW_FLAG"
+}
+
+# Set up signal handlers
+trap handle_interrupt SIGINT
+trap cleanup SIGTERM EXIT
+
+# Don't trap SIGWINCH - we'll poll for size changes instead
+
+# Hide cursor
+tput civis
+
+# Function to monitor keyboard input in background
+monitor_keyboard() {
+    # Read from stdin in non-blocking mode to detect any key presses
+    while [ ! -f "$STOP_FLAG" ] || [ "$(cat "$STOP_FLAG" 2>/dev/null)" != "1" ]; do
+        # Use read with timeout to avoid blocking
+        if read -t 0.1 -n 1 key 2>/dev/null; then
+            # Any key press triggers a redraw
+            handle_keyboard
+            # Consume any additional characters that might be buffered
+            while read -t 0.01 -n 1 2>/dev/null; do :; done
+        fi
+        # Small sleep to prevent excessive CPU usage
+        sleep 0.05
+    done
+}
+
+# Function to update timer (Docker-style with decimal seconds)
+update_timer() {
+    local start_time=$(date +%s%N)
+    while [ ! -f "$STOP_FLAG" ] || [ "$(cat "$STOP_FLAG" 2>/dev/null)" != "1" ]; do
+        local current_time=$(date +%s%N)
+        local elapsed_ns=$((current_time - start_time))
+        local elapsed_sec=$((elapsed_ns / 1000000000))
+        local elapsed_subsec=$(((elapsed_ns % 1000000000) / 100000000))
+        local elapsed_formatted="${elapsed_sec}.${elapsed_subsec}s"
+        echo "$elapsed_formatted" >"$TIMER_FILE"
+        sleep 0.1
+    done
+}
+
+# Function to draw the screen layout
+draw_screen_layout() {
+    local lines_available=$1
+    local cols=$2
+
+    # Clear screen and position cursor only if --no-clear flag is not set
+    if [ "$NO_CLEAR" = "0" ]; then
+        tput clear
+        tput cup 0 0
+    fi
+
+    # Header line with fancy styling - trim command if too long
+    local available_space=$((cols - 31)) # Reserve 2 more spaces for padding
+    local display_command="$COMMAND"
+
+    # Replace newlines with spaces and trim if necessary
+    display_command=$(echo "$display_command" | tr '\n' ' ' | sed 's/  */ /g')
+
+    if [ ${#display_command} -gt $available_space ]; then
+        display_command="${display_command:0:$((available_space - 2))}.."
+    fi
+
+    printf "${BOLD}${BLUE}[+] Running: ${NC}${WHITE}%-*s${NC}${BOLD}${BLUE}Building 0.0s${NC}\n" $((available_space + 2)) "$display_command"
+
+    # Content area (empty initially) with simple borders
+    for i in $(seq 1 $lines_available); do
+        printf "${GRAY}│${NC}%-*s\n" $((cols - 1)) ""
+    done
+}
+
+# Function to display output with timer (fancy colored version)
+display_output() {
+    # For --no-clear mode, use a completely different simple approach
+    if [ "$NO_CLEAR" = "1" ]; then
+        display_output_no_clear
+        return
+    fi
+    
+    local screen_lines=$(($(tput lines) - 2))
+    local lines_available
+
+    # Calculate available lines based on max-lines flag
+    if [ -n "$MAX_LINES" ]; then
+        # Use the smaller of max-lines or screen space
+        lines_available=$((MAX_LINES < screen_lines ? MAX_LINES : screen_lines))
+    else
+        lines_available=$screen_lines
+    fi
+
+    local cols=$(tput cols)
+    local last_timer=""
+    local last_content=""
+    local last_lines_available=$lines_available
+    local last_cols=$cols
+
+    # Draw initial screen layout
+    draw_screen_layout $lines_available $cols
+
+    # Main update loop
+    while [ ! -f "$STOP_FLAG" ] || [ "$(cat "$STOP_FLAG" 2>/dev/null)" != "1" ]; do
+        # Check for terminal size changes (poll-based approach)
+        local current_screen_lines=$(($(tput lines) - 2))
+        local current_cols=$(tput cols)
+        local current_lines_available
+
+        if [ -n "$MAX_LINES" ]; then
+            current_lines_available=$((MAX_LINES < current_screen_lines ? MAX_LINES : current_screen_lines))
+        else
+            current_lines_available=$current_screen_lines
+        fi
+
+        # Check if terminal size changed or redraw flag is set
+        if [ "$current_lines_available" != "$last_lines_available" ] || [ "$current_cols" != "$last_cols" ] ||
+            ([ -f "$REDRAW_FLAG" ] && [ "$(cat "$REDRAW_FLAG" 2>/dev/null)" = "1" ]); then
+
+            # Update dimensions
+            screen_lines=$current_screen_lines
+            lines_available=$current_lines_available
+            cols=$current_cols
+
+            # Redraw entire screen
+            draw_screen_layout $lines_available $cols
+
+            # Force content and timer refresh
+            last_content=""
+            last_timer=""
+            last_lines_available=$lines_available
+            last_cols=$cols
+
+            # Reset redraw flag
+            echo "0" >"$REDRAW_FLAG"
+        fi
+
+        # Update timer if changed (Docker-style)
+        if [ -f "$TIMER_FILE" ]; then
+            local timer_value=$(cat "$TIMER_FILE")
+            if [ "$timer_value" != "$last_timer" ]; then
+                # Position at the "Building" text and update the whole status
+                tput cup 0 $((cols - ${#timer_value} - 12))
+                printf "${BOLD}${BLUE}Building %s${NC}" "$timer_value"
+                last_timer="$timer_value"
+            fi
+        fi
+
+        # Update content if changed
+        if [ -f "$LOGFILE" ]; then
+            local current_content=$(tail -n $lines_available "$LOGFILE" 2>/dev/null || echo "")
+            if [ "$current_content" != "$last_content" ]; then
+                # Update only the content lines with syntax highlighting
+                local line_num=0
+                echo "$current_content" | while IFS= read -r line || [ -n "$line" ]; do
+                    if [ $line_num -lt $lines_available ]; then
+                        tput cup $((1 + line_num)) 0
+                        printf "${GRAY}│${NC} %-*.*s" $((cols - 3)) $((cols - 3)) "$line"
+                        line_num=$((line_num + 1))
+                    fi
+                done
+
+                # Clear any remaining old lines
+                local current_lines=$(echo "$current_content" | wc -l)
+                local old_lines=$(echo "$last_content" | wc -l)
+                if [ "$current_lines" -lt "$old_lines" ]; then
+                    for i in $(seq $((current_lines + 1)) $old_lines); do
+                        if [ $((i - 1)) -lt $lines_available ]; then
+                            tput cup $((i)) 0
+                            printf "${GRAY}│${NC}%-*s" $((cols - 2)) ""
+                        fi
+                    done
+                fi
+
+                last_content="$current_content"
+            fi
+        fi
+
+        # Small delay to prevent excessive CPU usage
+        sleep 0.05 # Faster for smoother timer updates
+    done
+}
+
+# Simple display function for --no-clear mode
+display_output_no_clear() {
+    local lines_available
+    if [ -n "$MAX_LINES" ]; then
+        lines_available=$MAX_LINES
+    else
+        lines_available=20  # Default for simple mode
+    fi
+    
+    local cols=$(tput cols)
+    
+    # Print header
+    local available_space=$((cols - 31))
+    local display_command="$COMMAND"
+    display_command=$(echo "$display_command" | tr '\n' ' ' | sed 's/  */ /g')
+    if [ ${#display_command} -gt $available_space ]; then
+        display_command="${display_command:0:$((available_space - 2))}.."
+    fi
+    
+    printf "${BOLD}${BLUE}[+] Running: ${NC}${WHITE}%-*s${NC}${BOLD}${BLUE}Building 0.0s${NC}\n" $((available_space + 2)) "$display_command"
+    
+    # Print empty content lines to reserve space - exactly lines_available, no more
+    for i in $(seq 1 $lines_available); do
+        if [ $i -eq $lines_available ]; then
+            # Last line: don't add newline to avoid extra line
+            printf "${GRAY}│${NC}%-*s" $((cols - 1)) ""
+        else
+            printf "${GRAY}│${NC}%-*s\n" $((cols - 1)) ""
+        fi
+    done
+    
+    # Move to start of header line and save position
+    tput cuu $lines_available  # Move up to the header line
+    tput cr                     # Move to column 0
+    tput sc                     # Save this position (start of header line)
+    
+    local last_content=""
+    local last_timer=""
+    
+    # Update loop using saved cursor position as reference
+    while [ ! -f "$STOP_FLAG" ] || [ "$(cat "$STOP_FLAG" 2>/dev/null)" != "1" ]; do
+        # Update timer if changed
+        if [ -f "$TIMER_FILE" ]; then
+            local timer_value=$(cat "$TIMER_FILE")
+            if [ "$timer_value" != "$last_timer" ]; then
+                # Go back to saved position (start of header line)
+                tput rc
+                # Move to timer position on header line
+                tput cuf $((cols - ${#timer_value} - 12))
+                printf "${BOLD}${BLUE}Building %s${NC}" "$timer_value"
+                last_timer="$timer_value"
+            fi
+        fi
+        
+        # Update content if changed
+        if [ -f "$LOGFILE" ]; then
+            local current_content=$(tail -n $lines_available "$LOGFILE" 2>/dev/null || echo "")
+            if [ "$current_content" != "$last_content" ]; then
+                # Go back to saved position and move to content area
+                tput rc
+                tput cud 1  # Move down to first content line
+                local line_num=0
+                echo "$current_content" | while IFS= read -r line || [ -n "$line" ]; do
+                    if [ $line_num -lt $lines_available ]; then
+                        tput cr
+                        printf "${GRAY}│${NC} %-*.*s" $((cols - 3)) $((cols - 3)) "$line"
+                        line_num=$((line_num + 1))
+                        # Move to next line only if we have more content to print
+                        if [ $line_num -lt $lines_available ] && [ $line_num -lt $(echo "$current_content" | wc -l) ]; then
+                            tput cud 1
+                        fi
+                    fi
+                done
+                
+                # Fill remaining lines with empty content if needed
+                local actual_lines=$(echo "$current_content" | wc -l)
+                if [ -z "$current_content" ]; then
+                    actual_lines=0
+                fi
+                
+                # Move to the line after the last content line
+                local remaining_lines=$((lines_available - actual_lines))
+                for i in $(seq 1 $remaining_lines); do
+                    tput cud 1
+                    tput cr
+                    printf "${GRAY}│${NC}%-*s" $((cols - 2)) ""
+                done
+                
+                last_content="$current_content"
+            fi
+        fi
+        
+        sleep 0.1
+    done
+}
+
+# Start timer in background
+update_timer &
+TIMER_PID=$!
+
+# Start keyboard monitoring in background
+monitor_keyboard &
+KEYBOARD_PID=$!
+
+# Start display in background
+display_output &
+DISPLAY_PID=$!
+
+# Execute the command and capture output
+{
+    # Execute command and capture both stdout and stderr, preserving exit code
+    (eval "$COMMAND") 2>&1 | while IFS= read -r line; do
+        echo "$line" >>"$LOGFILE"
+    done
+    # Store the command's exit code
+    echo "${PIPESTATUS[0]}" > "${LOGFILE}.exitcode"
+
+    # Command finished, wait a bit then signal to stop
+    echo "$(date '+%H:%M:%S') [Command completed]" >>"$LOGFILE"
+    sleep 2
+    echo "1" >"$STOP_FLAG"
+} &
+
+COMMAND_PID=$!
+
+# Wait for command to complete or user to interrupt
+wait $COMMAND_PID
+
+# Get the actual command exit code if available
+if [ -f "${LOGFILE}.exitcode" ]; then
+    COMMAND_EXIT_CODE=$(cat "${LOGFILE}.exitcode")
+    rm -f "${LOGFILE}.exitcode"
+fi
+
+# Keep display running for a moment after command completes
+sleep 3
+
+# Cleanup will be called by trap
