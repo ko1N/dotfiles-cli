@@ -42,12 +42,15 @@ local languages = {
 local lsp_configs = {
     rust_analyzer = {
         settings = {
-            ["rust-analyzer"] = {
+            ['rust-analyzer'] = {
                 cargo = {
-                    features = "all",
+                    -- features = "all",
                 },
                 checkOnSave = {
                     command = "clippy",
+                },
+                diagnostics = {
+                    enable = true,
                 },
             },
         },
@@ -101,7 +104,28 @@ return {
             })
 
             -- Update all installed treesitter languages
-            vim.cmd(":TSUpdate")
+            -- vim.cmd(":TSUpdate")
+        end,
+    },
+    {
+        "neovim/nvim-lspconfig",
+        config = function()
+            -- Custom signs:
+            -- local signs = { Error = "", Warn = "", Hint = "", Info = "" }
+            -- for type, icon in pairs(signs) do
+            --     local hl = "DiagnosticSign" .. type
+            --     vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
+            -- end
+
+            -- Inline diagnostics:
+            -- vim.diagnostic.config({
+            --     virtual_text = { prefix = "●", source = "if_many", spacing = 2 },
+            --     signs = true,
+            --     underline = true,
+            --     update_in_insert = false,
+            --     severity_sort = true,
+            --     float = { source = "if_many", header = "", prefix = "" },
+            -- })
         end,
     },
     {

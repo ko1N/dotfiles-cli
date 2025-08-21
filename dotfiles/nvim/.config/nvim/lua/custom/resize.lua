@@ -2,6 +2,24 @@ local M = {}
 
 M.resize_amount = 6
 
+local neighbor_cache = {}
+
+local function cache_key(tab, win)
+    return tostring(tab) .. ':' .. tostring(win)
+end
+
+local function get_cached_neighbors(tab, win)
+    return neighbor_cache[cache_key(tab, win)]
+end
+
+local function set_cached_neighbors(tab, win, neighbors)
+    neighbor_cache[cache_key(tab, win)] = neighbors
+end
+
+local function clear_neighbor_cache()
+    neighbor_cache = {}
+end
+
 -- Popup utilities
 local debug_output = {}
 
@@ -63,7 +81,8 @@ local function debug_windows()
     add_debug_line(string.format("Win ID: %d", current_win))
     add_debug_line(string.format("Position: [%d, %d]", current_pos[1], current_pos[2]))
     add_debug_line(string.format("Size: %dx%d", current_width, current_height))
-    add_debug_line(string.format("Boundaries: left=%d, right=%d, top=%d, bottom=%d", current_pos[2], current_pos[2] + current_width, current_pos[1], current_pos[1] + current_height))
+    add_debug_line(string.format("Boundaries: left=%d, right=%d, top=%d, bottom=%d", current_pos[2],
+        current_pos[2] + current_width, current_pos[1], current_pos[1] + current_height))
 
     local buf = vim.api.nvim_win_get_buf(current_win)
     local buf_name = vim.api.nvim_buf_get_name(buf)
@@ -87,7 +106,8 @@ local function debug_windows()
             add_debug_line(string.format("Win ID: %d", win))
             add_debug_line(string.format("  Position: [%d, %d]", pos[1], pos[2]))
             add_debug_line(string.format("  Size: %dx%d", width, height))
-            add_debug_line(string.format("  Boundaries: left=%d, right=%d, top=%d, bottom=%d", pos[2], pos[2] + width, pos[1], pos[1] + height))
+            add_debug_line(string.format("  Boundaries: left=%d, right=%d, top=%d, bottom=%d", pos[2], pos[2] + width,
+                pos[1], pos[1] + height))
             add_debug_line(string.format("  Relative: '%s'", config.relative))
             add_debug_line(string.format("  Buffer: %s (ft: %s)", buf_name2, filetype2))
             add_debug_line("")
@@ -99,6 +119,11 @@ local function get_neighbors(debug)
     debug = debug or false
 
     local current_win = vim.api.nvim_get_current_win()
+    local current_tab = vim.api.nvim_get_current_tabpage()
+    if not debug then
+        local cached = get_cached_neighbors(current_tab, current_win)
+        if cached then return cached end
+    end
     local current_pos = vim.api.nvim_win_get_position(current_win)
     local current_width = vim.api.nvim_win_get_width(current_win)
     local current_height = vim.api.nvim_win_get_height(current_win)
@@ -150,8 +175,10 @@ local function get_neighbors(debug)
                     add_debug_line(string.format("Checking win %d (ft: %s)", win, filetype2))
                 end
 
-                local vertical_overlap = math.max(0, math.min(current_bottom, other_bottom) - math.max(current_top, other_top))
-                local horizontal_overlap = math.max(0, math.min(current_right, other_right) - math.max(current_left, other_left))
+                local vertical_overlap = math.max(0,
+                    math.min(current_bottom, other_bottom) - math.max(current_top, other_top))
+                local horizontal_overlap = math.max(0,
+                    math.min(current_right, other_right) - math.max(current_left, other_left))
 
                 local left_adjacent = (other_right >= current_left - 2) and (other_right <= current_left + 2)
                 if left_adjacent and vertical_overlap > 0 then
@@ -162,7 +189,8 @@ local function get_neighbors(debug)
                         if debug then add_debug_line("  -> LEFT neighbor found/updated") end
                     end
                 elseif debug then
-                    add_debug_line(string.format("  -> Not left adjacent: other_right=%d, current_left=%d", other_right, current_left))
+                    add_debug_line(string.format("  -> Not left adjacent: other_right=%d, current_left=%d", other_right,
+                        current_left))
                 end
 
                 local right_adjacent = (current_right >= other_left - 2) and (current_right <= other_left + 2)
@@ -174,7 +202,8 @@ local function get_neighbors(debug)
                         if debug then add_debug_line("  -> RIGHT neighbor found/updated") end
                     end
                 elseif debug then
-                    add_debug_line(string.format("  -> Not right adjacent: current_right=%d, other_left=%d", current_right, other_left))
+                    add_debug_line(string.format("  -> Not right adjacent: current_right=%d, other_left=%d",
+                        current_right, other_left))
                 end
 
                 local above_adjacent = (other_bottom >= current_top - 2) and (other_bottom <= current_top + 2)
@@ -186,7 +215,8 @@ local function get_neighbors(debug)
                         if debug then add_debug_line("  -> ABOVE neighbor found/updated") end
                     end
                 elseif debug then
-                    add_debug_line(string.format("  -> Not above adjacent: other_bottom=%d, current_top=%d", other_bottom, current_top))
+                    add_debug_line(string.format("  -> Not above adjacent: other_bottom=%d, current_top=%d", other_bottom,
+                        current_top))
                 end
 
                 local below_adjacent = (current_bottom >= other_top - 2) and (current_bottom <= other_top + 2)
@@ -198,7 +228,8 @@ local function get_neighbors(debug)
                         if debug then add_debug_line("  -> BELOW neighbor found/updated") end
                     end
                 elseif debug then
-                    add_debug_line(string.format("  -> Not below adjacent: current_bottom=%d, other_top=%d", current_bottom, other_top))
+                    add_debug_line(string.format("  -> Not below adjacent: current_bottom=%d, other_top=%d",
+                        current_bottom, other_top))
                 end
             elseif debug then
                 add_debug_line(string.format("  -> Skipping floating window %d (relative='%s')", win, config.relative))
@@ -208,10 +239,25 @@ local function get_neighbors(debug)
 
     if debug then
         add_debug_line("")
-        add_debug_line(string.format("Final neighbors: left=%s(%s), right=%s(%s), above=%s(%s), below=%s(%s)", tostring(neighbors.left), tostring(neighbors.left_id), tostring(neighbors.right), tostring(neighbors.right_id), tostring(neighbors.above), tostring(neighbors.above_id), tostring(neighbors.below), tostring(neighbors.below_id)))
+        add_debug_line(string.format("Final neighbors: left=%s(%s), right=%s(%s), above=%s(%s), below=%s(%s)",
+            tostring(neighbors.left), tostring(neighbors.left_id), tostring(neighbors.right),
+            tostring(neighbors.right_id), tostring(neighbors.above), tostring(neighbors.above_id),
+            tostring(neighbors.below), tostring(neighbors.below_id)))
     end
 
+    set_cached_neighbors(current_tab, current_win, neighbors)
+
     return neighbors
+end
+
+local function is_sidebar_window(win)
+    local ok_buf, buf = pcall(vim.api.nvim_win_get_buf, win)
+    if not ok_buf then return false end
+    local ft = vim.api.nvim_buf_get_option(buf, 'filetype')
+    local ok_fix, fix = pcall(vim.api.nvim_win_get_option, win, 'winfixwidth')
+    if ok_fix and fix then return true end
+    if ft == 'neo-tree' or ft == 'NvimTree' or ft == 'aerial' or ft == 'Outline' then return true end
+    return false
 end
 
 function M.resize_left(debug)
@@ -224,18 +270,23 @@ function M.resize_left(debug)
         add_debug_line("")
         add_debug_line("=== RESIZE LEFT ===")
         if neighbors.right then
-            add_debug_line("Has right neighbor -> shrink current (move right border left)")
+            add_debug_line("Has right neighbor -> move right border left (shrink current)")
         elseif neighbors.left then
-            add_debug_line("Rightmost (no right neighbor) -> expand current (move left border left)")
+            add_debug_line("Rightmost -> move left shared border left (expand current)")
         else
             add_debug_line("No horizontal neighbors")
         end
     end
 
-    if neighbors.right then
-        vim.cmd(string.format("vertical resize -%d", M.resize_amount))
-    elseif neighbors.left then
+    if neighbors.right and neighbors.right_id and is_sidebar_window(neighbors.right_id) then
+        local cur = vim.api.nvim_get_current_win()
+        vim.api.nvim_set_current_win(neighbors.right_id)
         vim.cmd(string.format("vertical resize +%d", M.resize_amount))
+        vim.api.nvim_set_current_win(cur)
+    elseif neighbors.right then
+        vim.cmd(string.format("%dwincmd <", M.resize_amount))
+    elseif neighbors.left then
+        vim.cmd(string.format("%dwincmd >", M.resize_amount))
     end
 
     if debug then show_debug_popup() end
@@ -251,18 +302,23 @@ function M.resize_right(debug)
         add_debug_line("")
         add_debug_line("=== RESIZE RIGHT ===")
         if neighbors.right then
-            add_debug_line("Has right neighbor -> expand current (move right border right)")
+            add_debug_line("Has right neighbor -> move right border right (expand current)")
         elseif neighbors.left then
-            add_debug_line("Rightmost (no right neighbor) -> shrink current (move left border right)")
+            add_debug_line("Rightmost -> move left shared border right (shrink current)")
         else
             add_debug_line("No horizontal neighbors")
         end
     end
 
-    if neighbors.right then
-        vim.cmd(string.format("vertical resize +%d", M.resize_amount))
-    elseif neighbors.left then
+    if neighbors.right and neighbors.right_id and is_sidebar_window(neighbors.right_id) then
+        local cur = vim.api.nvim_get_current_win()
+        vim.api.nvim_set_current_win(neighbors.right_id)
         vim.cmd(string.format("vertical resize -%d", M.resize_amount))
+        vim.api.nvim_set_current_win(cur)
+    elseif neighbors.right then
+        vim.cmd(string.format("%dwincmd >", M.resize_amount))
+    elseif neighbors.left then
+        vim.cmd(string.format("%dwincmd <", M.resize_amount))
     end
 
     if debug then show_debug_popup() end
@@ -342,6 +398,9 @@ function M.setup(opts)
     opts = opts or {}
     M.resize_amount = opts.resize_amount or 6
 
+    local aug = vim.api.nvim_create_augroup('ResizeNeighborsCache', { clear = true })
+    vim.api.nvim_create_autocmd({ 'WinNew', 'WinClosed', 'TabNew', 'TabClosed', 'WinResized' }, { group = aug, callback = function() clear_neighbor_cache() end })
+
     local keymap_opts = { noremap = true, silent = true }
 
     vim.keymap.set('n', '<C-A-h>', M.resize_left, keymap_opts)
@@ -349,11 +408,11 @@ function M.setup(opts)
     vim.keymap.set('n', '<C-A-k>', M.resize_up, keymap_opts)
     vim.keymap.set('n', '<C-A-j>', M.resize_down, keymap_opts)
 
-    vim.keymap.set('n', '<leader>rn', M.debug_neighbors, { desc = "Debug window neighbors" })
-    vim.keymap.set('n', '<leader>rl', M.debug_resize_left, { desc = "Debug resize left" })
-    vim.keymap.set('n', '<leader>rr', M.debug_resize_right, { desc = "Debug resize right" })
-    vim.keymap.set('n', '<leader>ru', M.debug_resize_up, { desc = "Debug resize up" })
-    vim.keymap.set('n', '<leader>rd', M.debug_resize_down, { desc = "Debug resize down" })
+    -- vim.keymap.set('n', '<leader>rn', M.debug_neighbors, { desc = "Debug window neighbors" })
+    -- vim.keymap.set('n', '<leader>rl', M.debug_resize_left, { desc = "Debug resize left" })
+    -- vim.keymap.set('n', '<leader>rr', M.debug_resize_right, { desc = "Debug resize right" })
+    -- vim.keymap.set('n', '<leader>ru', M.debug_resize_up, { desc = "Debug resize up" })
+    -- vim.keymap.set('n', '<leader>rd', M.debug_resize_down, { desc = "Debug resize down" })
 end
 
 return M

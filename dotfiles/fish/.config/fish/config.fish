@@ -55,6 +55,8 @@ set -gx PATH $HOME/.local/bin $PATH
 
 set -gx PATH $HOME/.npmenv/bin $PATH
 
+set -gx PATH $PATH /home/patrick/.lmstudio/bin
+
 # secrets
 if test -f ~/.config/fish/secrets.fish
     source ~/.config/fish/secrets.fish
