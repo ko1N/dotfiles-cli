@@ -76,9 +76,11 @@ vim.keymap.set("v", "<", "<gv", { noremap = true, silent = true })
 vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>",
     { noremap = true, silent = true, desc = "Go to definition" })
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { silent = true, noremap = true, desc = "Code action" })
+vim.keymap.set("n", "<leader>cf", "<cmd>ToggleAutoformat<CR>",
+    { silent = true, noremap = true, desc = "Toggle code formatting" })
 vim.keymap.set("n", "<leader>k", vim.lsp.buf.hover, { silent = true, noremap = true, desc = "Show Docs" })
 -- vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts_l)
---
+
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float,
     { silent = true, noremap = true, desc = "Show Error/Diagnostic" })
 vim.keymap.set("n", "<leader>E", vim.diagnostic.setloclist,

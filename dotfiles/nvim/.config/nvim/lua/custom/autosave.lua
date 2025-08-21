@@ -64,11 +64,16 @@ local function update_mark(winid)
 end
 
 local function update_all()
+    local current_win = vim.api.nvim_get_current_win()
     local visible = {}
     for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
         for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
             visible[win] = true
-            update_mark(win)
+            if win == current_win then
+                update_mark(win)
+            else
+                clear_mark(win)
+            end
         end
     end
     for winid, _ in pairs(marks) do
@@ -101,7 +106,7 @@ function M.setup()
     vim.api.nvim_create_autocmd({ 'BufWinEnter', 'WinEnter', 'BufEnter' }, {
         group = aug,
         callback = function()
-            update_mark(vim.api.nvim_get_current_win())
+            update_all()
         end,
     })
 
