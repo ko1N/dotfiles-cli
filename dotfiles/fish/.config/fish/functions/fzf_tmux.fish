@@ -18,6 +18,9 @@ function tmc -d "Create or attach to current folders session"
     if not tmux has-session -t $session_name 2>/dev/null
         echo "Creating new session '$session_name'..."
         tmux new-session -d -s $session_name
+
+        # Save current state
+        tms --silent
     end
 
     if not test -n "$TMUX"
@@ -26,8 +29,6 @@ function tmc -d "Create or attach to current folders session"
         tmux switch-client -t $session_name
     end
 
-    # Save current state
-    tms --silent
 end
 
 function tma -d "Attach tmux session"
@@ -46,6 +47,7 @@ function tmk -d "Kill tmux session"
     tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux kill-session -t "$result"
 
     # Save current state
+    # TODO: does not work if we delete the session we are currently in
     tms --silent
 end
 
