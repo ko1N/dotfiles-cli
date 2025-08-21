@@ -57,7 +57,7 @@ set -gx PATH $HOME/.npmenv/bin $PATH
 
 # secrets
 if test -f ~/.config/fish/secrets.fish
-  source ~/.config/fish/secrets.fish
+    source ~/.config/fish/secrets.fish
 end
 
 # aliases
@@ -77,7 +77,7 @@ alias gs="git status"
 alias ga="git add"
 # alias gc="git commit"
 function batdiff
-  git diff --name-only --relative --diff-filter=d $argv | xargs bat --diff
+    git diff --name-only --relative --diff-filter=d $argv | xargs bat --diff
 end
 alias gd="batdiff"
 alias grm="git rebase origin/master"
@@ -139,7 +139,13 @@ source $HOME/.config/fish/functions/fzf_git.fish
 source $HOME/.config/fish/functions/fzf_pyenv.fish
 
 # completions
-zoxide init fish | source
+if command -v zoxide >/dev/null 2>&1
+    zoxide init fish | source
+end
+
+if command -v cells >/dev/null 2>&1
+    cells completion fish | source
+end
 
 # start ssh agent
 fish_ssh_agent
@@ -155,4 +161,3 @@ function sudo
         command sudo $argv
     end
 end
-

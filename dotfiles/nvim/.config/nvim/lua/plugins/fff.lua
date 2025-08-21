@@ -5,8 +5,12 @@ return {
     -- build = "nix run .#release",
     opts = {
         prompt = '',
-        width = 1.0,
-        height = 0.90, -- TODO: 1.0 does not work
+        ui_enabled = false,
+        layout = {
+            width = 0.95,
+            height = 0.90, -- TODO: 1.0 does not work
+            preview_size = 0.75,
+        },
         keymaps = {
             move_up = { '<Up>', '<C-p>', '<C-k>' },
             move_down = { '<Down>', '<C-n>', '<C-j>' },
