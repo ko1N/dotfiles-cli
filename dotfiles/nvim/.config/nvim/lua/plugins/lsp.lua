@@ -29,10 +29,10 @@ local languages = {
     { ts = "yaml",       lsp = "yamlls",              fmt = "yamlfmt",            linter = "yamllint" },
     { ts = "xml",        lsp = "lemminx",             fmt = "xmlformatter" },
 
-    { ts = "dockerfile", lsp = "dockerls",            linter = "hadolint" },
+    -- { ts = "dockerfile", lsp = "dockerls",            linter = "hadolint" },
     { ts = "terraform",  lsp = "terraformls",         fmt = "terraform",          linter = "tflint" },
     { ts = "yaml",       lsp = "ansiblels" },
-    { ts = "nix",        lsp = "nil_ls",              fmt = "nixfmt" },
+    -- { ts = "nix",        lsp = "nil_ls",              fmt = "nixfmt" },
 
     { ts = "markdown",   lsp = "marksman",            fmt = "prettier",           linter = "markdownlint" },
     -- { ts = "tex",        lsp = "texlab",              fmt = "latexindent" },

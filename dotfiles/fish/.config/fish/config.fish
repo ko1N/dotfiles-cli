@@ -49,13 +49,16 @@ set -gx GOBIN $GOPATH/bin
 set -gx PATH $GOBIN $PATH
 
 set -gx RUSTBIN $HOME/.cargo/bin
+if command -v brew >/dev/null 2>&1
+    set -gx RUSTBIN (brew --prefix rustup)/bin
+end
 set -gx PATH $RUSTBIN $PATH
 
 set -gx PATH $HOME/.local/bin $PATH
 
 set -gx PATH $HOME/.npmenv/bin $PATH
 
-set -gx PATH $PATH /home/patrick/.lmstudio/bin
+set -gx PATH $PATH $HOME/.lmstudio/bin
 
 # secrets
 if test -f ~/.config/fish/secrets.fish
