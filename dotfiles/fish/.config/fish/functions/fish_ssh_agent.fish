@@ -48,7 +48,7 @@ function fish_ssh_yubikey --description "Reload YubiKey SSH key"
     ssh-add -L | grep "PIV AUTH" | ssh-add -d -
 
     # Add YubiKey SSH key using PKCS#11 provider
-    set provider (cat ~/.ssh/config | grep PKCS11Provider | cut -d' ' -f2)
+    set provider (cat ~/.ssh/config | grep "^PKCS11Provider" | cut -d' ' -f2)
     ssh-add -s $provider
     echo "YubiKey SSH key has been loaded."
 end

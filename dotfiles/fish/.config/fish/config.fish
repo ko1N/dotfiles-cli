@@ -50,7 +50,7 @@ set -gx PATH $GOBIN $PATH
 
 set -gx RUSTBIN $HOME/.cargo/bin
 if command -v brew >/dev/null 2>&1
-    set -gx RUSTBIN (brew --prefix rustup)/bin
+    set -gx RUSTBIN (brew --prefix rustup)/bin $RUSTBIN
 end
 set -gx PATH $RUSTBIN $PATH
 
@@ -166,3 +166,7 @@ function sudo
         command sudo $argv
     end
 end
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/patrick/.lmstudio/bin
+# End of LM Studio CLI section

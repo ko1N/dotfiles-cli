@@ -28,23 +28,61 @@ function tmc -d "Create or attach to current folders session"
     else
         tmux switch-client -t $session_name
     end
-
 end
 
-function tma -d "Attach tmux session"
-    if not test -n "$TMUX"
-        tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux attach -t "$result"
+function __tui_select_session -d "Select a tmux session (with preview)"
+    set -l header "$argv[1]"
+    test -z "$header" && set header 'Select tmux session'
+
+    set session (tmux list-sessions -F '#{session_name}: #{session_windows} windows #{?session_attached,(attached),}' | \
+                 fzf --reverse \
+                     --preview-window=down:75% \
+                     --ansi \
+                     --border none \
+                     --preview-border top \
+                     --separator '─' \
+                     --header "$header" \
+                     --preview "set SESSION (echo {} | cut -d: -f1); and \
+                                tmux capture-pane -t \$SESSION -e -J -p 2>/dev/null" | \
+                 cut -d: -f1)
+    echo $session
+end
+
+function tma -d "Attach / switch to a tmux session via fzf (enhanced preview)"
+    set sel (__tui_select_session 'Attach to session')
+    if test -z "$sel"
+        echo "No session selected."
+        return 1
+    end
+
+    if test -n "$TMUX"
+        tmux switch-client -t "$sel"
     else
-        tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux switch-client -t "$result"
+        tmux attach -t "$sel"
     end
 end
 
 function tmm -d "Mirror tmux session"
-    tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux new-session -t "$result" -s "$result"--mirror; and tmux switch-client -t "$result"--mirror
+    set sel (__tui_select_session 'Mirror session')
+    if test -z "$sel"
+        echo "No session selected."
+        return 1
+    end
+
+    # Create a mirrored copy of the selected session,
+    # then switch to it.
+    tmux new-session -t "$sel" -s "$sel" --mirror \
+        && tmux switch-client -t "$sel" --mirror
 end
 
 function tmk -d "Kill tmux session"
-    tmux list-sessions -F "#{session_name}" | fzf --height 10% --layout=reverse --border | read -l result; and tmux kill-session -t "$result"
+    set sel (__tui_select_session 'Kill session')
+    if test -z "$sel"
+        echo "No session selected."
+        return 1
+    end
+
+    tmux kill-session -t "$sel"
 
     # Save current state
     # TODO: does not work if we delete the session we are currently in
