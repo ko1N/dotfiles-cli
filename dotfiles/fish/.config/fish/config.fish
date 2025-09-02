@@ -54,6 +54,10 @@ if command -v brew >/dev/null 2>&1
 end
 set -gx PATH $RUSTBIN $PATH
 
+if command -v brew >/dev/null 2>&1
+    set -gx PATH (brew --prefix python3)/bin $PATH
+end
+
 set -gx PATH $HOME/.local/bin $PATH
 
 set -gx PATH $HOME/.npmenv/bin $PATH

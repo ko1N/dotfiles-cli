@@ -1,0 +1,563 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import sys
+import time
+import datetime
+import platform
+import subprocess
+import urllib.parse
+import urllib.request
+import shutil
+import shlex
+import tempfile
+from typing import Any, Dict, List, Optional, Tuple
+
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "promwatch")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
+ENV_PROM_URL = "PROMWATCH_PROMETHEUS_URL"
+DEFAULT_PROM_URL = "http://localhost:9090"
+
+
+def ensure_config_dir() -> None:
+    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+
+
+def default_config() -> Dict[str, Any]:
+    return {
+        "prometheus_url": DEFAULT_PROM_URL,
+        "alerts": {},
+        "poll_interval_seconds": 1800,
+    }
+
+
+def load_config() -> Dict[str, Any]:
+    ensure_config_dir()
+    if not os.path.exists(CONFIG_FILE):
+        cfg = default_config()
+        save_config(cfg)
+        return cfg
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        try:
+            ts = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+            shutil.copyfile(CONFIG_FILE, CONFIG_FILE + f".bak-{ts}")
+        except Exception:
+            pass
+        cfg = default_config()
+        save_config(cfg)
+        return cfg
+
+
+def save_config(cfg: Dict[str, Any]) -> None:
+    ensure_config_dir()
+    tmp = CONFIG_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, sort_keys=True)
+    os.replace(tmp, CONFIG_FILE)
+
+
+essential_keys = ["prometheus_url", "alerts", "poll_interval_seconds"]
+
+def validate_config(cfg: Dict[str, Any]) -> None:
+    changed = False
+    for k in essential_keys:
+        if k not in cfg:
+            cfg[k] = default_config()[k]
+            changed = True
+    if changed:
+        save_config(cfg)
+
+
+def resolve_prom_url(cfg: Dict[str, Any], override: Optional[str]) -> str:
+    if override:
+        return override
+    env = os.environ.get(ENV_PROM_URL)
+    if env:
+        return env
+    return cfg.get("prometheus_url") or DEFAULT_PROM_URL
+
+
+def http_get(url: str, timeout: float = 10.0) -> Tuple[int, bytes]:
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        code = getattr(resp, "status", resp.getcode())
+        data = resp.read()
+        return code, data
+
+
+def query_prometheus(base_url: str, expr: str, timeout: float = 10.0) -> Dict[str, Any]:
+    q = urllib.parse.urlencode({"query": expr})
+    url = base_url.rstrip("/") + "/api/v1/query?" + q
+    code, data = http_get(url, timeout=timeout)
+    if code != 200:
+        raise RuntimeError(f"Prometheus returned HTTP {code}")
+    try:
+        parsed = json.loads(data.decode("utf-8"))
+        return parsed
+    except Exception as e:
+        raise RuntimeError(f"Invalid JSON from Prometheus: {e}")
+
+
+def parse_eval_result(resp: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    if not isinstance(resp, dict) or resp.get("status") != "success":
+        return False, ["Query failed or status != success"]
+    data = resp.get("data", {})
+    rtype = data.get("resultType")
+    result = data.get("result")
+    lines: List[str] = []
+    triggered = False
+
+    def val_nonzero(v: Any) -> bool:
+        try:
+            return float(v) != 0.0
+        except Exception:
+            return False
+
+    if rtype == "scalar":
+        if isinstance(result, list) and len(result) == 2:
+            value = result[1]
+            triggered = val_nonzero(value)
+            lines.append(f"scalar={value}")
+        else:
+            lines.append("unexpected scalar shape")
+    elif rtype == "vector":
+        if isinstance(result, list):
+            if len(result) == 0:
+                triggered = False
+                lines.append("vector(empty)")
+            else:
+                any_nonzero = False
+                for item in result:
+                    metric = item.get("metric", {})
+                    value = item.get("value", [None, None])[1]
+                    label_str = ",".join(f"{k}={v}" for k, v in sorted(metric.items()))
+                    lines.append(f"{label_str} value={value}")
+                    if val_nonzero(value):
+                        any_nonzero = True
+                triggered = any_nonzero
+        else:
+            lines.append("unexpected vector shape")
+    elif rtype == "matrix":
+        if isinstance(result, list) and len(result) > 0:
+            any_nonzero = False
+            for stream in result:
+                metric = stream.get("metric", {})
+                values = stream.get("values", [])
+                nz = any(val_nonzero(v[1]) for v in values if isinstance(v, list) and len(v) >= 2)
+                label_str = ",".join(f"{k}={v}" for k, v in sorted(metric.items()))
+                lines.append(f"{label_str} points={len(values)} nonzero={nz}")
+                if nz:
+                    any_nonzero = True
+            triggered = any_nonzero
+        else:
+            triggered = False
+            lines.append("matrix(empty)")
+    else:
+        lines.append(f"unsupported resultType={rtype}")
+        triggered = False
+    return triggered, lines
+
+
+def notify(title: str, message: str) -> None:
+    system = platform.system()
+    if system == "Linux":
+        cmd = shutil.which("notify-send")
+        if cmd:
+            try:
+                subprocess.run([cmd, title, message], check=False)
+                return
+            except Exception:
+                pass
+    elif system == "Darwin":
+        osa = shutil.which("osascript")
+        if osa:
+            try:
+                osa_script = f'display notification {json.dumps(message)} with title {json.dumps(title)}'
+                subprocess.run([osa, "-e", osa_script], check=False)
+                return
+            except Exception:
+                pass
+    sys.stdout.write(f"[NOTIFY] {title}: {message}\n")
+    sys.stdout.flush()
+
+
+def now_iso() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def add_alert(cfg: Dict[str, Any], name: str, expr: str, comment: Optional[str], force: bool = False) -> None:
+    alerts = cfg.setdefault("alerts", {})
+    if not force and name in alerts:
+        raise SystemExit(f"alert '{name}' already exists. Use --force to overwrite.")
+    alerts[name] = {
+        "expr": expr,
+        "comment": comment or "",
+        "acked": False,
+        "created_at": now_iso(),
+        "last_triggered": None,
+    }
+    save_config(cfg)
+
+
+def remove_alert(cfg: Dict[str, Any], name: str) -> None:
+    alerts = cfg.get("alerts", {})
+    if name not in alerts:
+        raise SystemExit(f"alert '{name}' does not exist")
+    del alerts[name]
+    save_config(cfg)
+
+
+def list_alerts(cfg: Dict[str, Any]) -> None:
+    alerts = cfg.get("alerts", {})
+    if not alerts:
+        print("No alerts configured.")
+        return
+    width = max(len(n) for n in alerts)
+    for name, a in sorted(alerts.items()):
+        expr = a.get("expr", "")
+        comment = a.get("comment", "")
+        acked = a.get("acked", False)
+        last = a.get("last_triggered")
+        print(f"{name.ljust(width)} | acked={'yes' if acked else 'no '} | last_triggered={last or '-'}")
+        print(f"  expr: {expr}")
+        if comment:
+            print(f"  note: {comment}")
+
+
+def ack_alert(cfg: Dict[str, Any], name: str, ack: bool) -> None:
+    alerts = cfg.get("alerts", {})
+    if name not in alerts:
+        raise SystemExit(f"alert '{name}' does not exist")
+    alerts[name]["acked"] = ack
+    save_config(cfg)
+
+
+def evaluate(cfg: Dict[str, Any], base_url: str, name: Optional[str]) -> int:
+    alerts = cfg.get("alerts", {})
+    selected = alerts if name is None else {name: alerts.get(name)}
+    if name is not None and selected.get(name) is None:
+        raise SystemExit(f"alert '{name}' does not exist")
+
+    exit_code = 0
+    for n, a in sorted(selected.items()):
+        expr = a.get("expr")
+        comment = a.get("comment", "")
+        try:
+            resp = query_prometheus(base_url, expr)
+            trig, lines = parse_eval_result(resp)
+        except Exception as e:
+            print(f"{n}: ERROR: {e}")
+            exit_code = 2
+            continue
+        status = "TRIGGERED" if trig else "ok"
+        print(f"{n}: {status}")
+        if comment:
+            print(f"  note: {comment}")
+        print(f"  expr: {expr}")
+        for ln in lines:
+            print(f"  -> {ln}")
+        if trig:
+            exit_code = max(exit_code, 1)
+    return exit_code
+
+
+def run_loop(cfg: Dict[str, Any], base_url: str, interval: int, once: bool = False) -> None:
+    def one_iteration() -> None:
+        cfg2 = load_config()
+        validate_config(cfg2)
+        alerts = cfg2.get("alerts", {})
+        if not alerts:
+            return
+        changed = False
+        for name, a in sorted(alerts.items()):
+            expr = a.get("expr")
+            comment = a.get("comment", "")
+            acked = a.get("acked", False)
+            try:
+                resp = query_prometheus(base_url, expr, timeout=15.0)
+                trig, lines = parse_eval_result(resp)
+            except Exception as e:
+                notify(f"promwatch: {name}", f"Error evaluating: {e}")
+                continue
+            status = "TRIGGERED" if trig else "ok"
+            print(f"{name}: {status}")
+            if comment:
+                print(f"  note: {comment}")
+            print(f"  expr: {expr}")
+            for ln in lines:
+                print(f"  -> {ln}")
+            if trig:
+                a["last_triggered"] = now_iso()
+                if not acked:
+                    message_lines = []
+                    if comment:
+                        message_lines.append(comment)
+                    message_lines.append(f"expr: {expr}")
+                    message_lines.extend(lines[:5])
+                    msg = "\n".join(message_lines)
+                    notify(f"ALERT: {name}", msg)
+                changed = True
+            else:
+                if acked:
+                    a["acked"] = False
+                    changed = True
+        if changed:
+            save_config(cfg2)
+
+    one_iteration()
+    if once:
+        return
+    try:
+        while True:
+            time.sleep(max(1, interval))
+            one_iteration()
+    except KeyboardInterrupt:
+        print("Exiting on Ctrl-C")
+
+
+def choose_editor() -> Optional[List[str]]:
+    candidates: List[str] = []
+    vis = os.environ.get("VISUAL")
+    if vis:
+        candidates.append(vis)
+    edt = os.environ.get("EDITOR")
+    if edt:
+        candidates.append(edt)
+    candidates.extend(["nvim", "vim", "vi", "nano"])
+    for cand in candidates:
+        parts = shlex.split(cand)
+        if not parts:
+            continue
+        if shutil.which(parts[0]):
+            return parts
+    return None
+
+
+def edit_in_editor(initial: str) -> Tuple[int, Optional[str]]:
+    parts = choose_editor()
+    if not parts:
+        return 127, None
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp", mode="w", encoding="utf-8") as tf:
+        path = tf.name
+        tf.write(initial)
+    try:
+        proc = subprocess.run(parts + [path])
+        code = proc.returncode
+        if code != 0:
+            return code, None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return 0, f.read()
+        except Exception:
+            return 1, None
+    finally:
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+
+
+def edit_alert(cfg: Dict[str, Any], base_url: str, name: str, field: str, validate: bool) -> int:
+    alerts = cfg.get("alerts", {})
+    if name not in alerts:
+        print(f"alert '{name}' does not exist")
+        return 2
+    a = alerts[name]
+    key = "comment" if field == "comment" else "expr"
+    initial = a.get(key, "") or ""
+    code, new_text = edit_in_editor(initial)
+    if code != 0:
+        print(f"Editor exited with status {code}")
+        return code
+    if new_text is None:
+        print("No changes")
+        return 1
+    new_clean = new_text.rstrip("\n")
+    if key == "expr" and not new_clean.strip():
+        print("Expression cannot be empty")
+        return 2
+    if new_clean == initial:
+        print("No changes")
+        return 0
+    if key == "expr" and validate:
+        try:
+            resp = query_prometheus(base_url, new_clean)
+            if not isinstance(resp, dict) or resp.get("status") != "success":
+                et = resp.get("errorType") if isinstance(resp, dict) else None
+                em = resp.get("error") if isinstance(resp, dict) else None
+                print(f"Prometheus query failed: {et or ''} {em or ''}".strip())
+                return 2
+        except Exception as e:
+            print(f"Failed to validate expression against {base_url}: {e}")
+            return 2
+    a[key] = new_clean
+    save_config(cfg)
+    print(f"Updated alert '{name}' {key}")
+    return 0
+
+
+def daemonize_unix() -> None:
+    if os.fork() > 0:
+        os._exit(0)
+    os.setsid()
+    if os.fork() > 0:
+        os._exit(0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    with open(os.devnull, 'rb', 0) as f:
+        os.dup2(f.fileno(), sys.stdin.fileno())
+    with open(os.devnull, 'ab', 0) as f:
+        os.dup2(f.fileno(), sys.stdout.fileno())
+        os.dup2(f.fileno(), sys.stderr.fileno())
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="promwatch",
+        description=(
+            "Prometheus alert watcher: store alert expressions and notify on trigger.\n"
+            "Expressions should evaluate to non-zero when alerting (vector/scalar)."
+        ),
+    )
+    p.add_argument("--prometheus", "--endpoint", dest="endpoint", help="Prometheus base URL (overrides config/env)")
+    p.add_argument("--config", dest="config_file", help="Path to config file (default: ~/.config/promwatch/config.json)")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp_add = sub.add_parser("add", help="Add a new alert condition")
+    sp_add.add_argument("name", help="Unique alert name")
+    sp_add.add_argument("expr", help="PromQL expression (non-zero -> triggered)")
+    sp_add.add_argument("--comment", "-c", help="Optional note/comment")
+    sp_add.add_argument("--force", action="store_true", help="Overwrite if exists")
+    sp_add.add_argument("--no-validate", action="store_true", help="Skip Prometheus validation when adding")
+
+    sp_rm = sub.add_parser("remove", help="Remove an alert condition")
+    sp_rm.add_argument("name", help="Alert name to remove")
+
+    sub.add_parser("list", help="List configured alerts")
+
+    sp_eval = sub.add_parser("evaluate", help="Evaluate a condition (current value)")
+    sp_eval.add_argument("name", nargs="?", help="Alert name (omit to evaluate all)")
+
+    sp_run = sub.add_parser("run", help="Run watcher loop and notify on triggers")
+    sp_run.add_argument("--interval", "-i", type=int, help="Polling interval seconds (default from config)")
+    sp_run.add_argument("--once", action="store_true", help="Run a single iteration and exit")
+    sp_run.add_argument("--daemon", action="store_true", help="Detach and run in background (Unix only)")
+
+    sp_ack = sub.add_parser("ack", help="Acknowledge (silence) an alert until it recovers")
+    sp_ack.add_argument("name", help="Alert name to acknowledge")
+
+    sp_unack = sub.add_parser("unack", help="Clear acknowledgement (resume notifications)")
+    sp_unack.add_argument("name", help="Alert name to unacknowledge")
+
+    sp_cfg = sub.add_parser("set-endpoint", help="Persist Prometheus endpoint to config")
+    sp_cfg.add_argument("url", help="Prometheus base URL, e.g. http://localhost:9090")
+
+    sp_int = sub.add_parser("set-interval", help="Persist polling interval to config")
+    sp_int.add_argument("seconds", type=int, help="Polling interval in seconds")
+
+    sp_edit = sub.add_parser("edit", help="Edit an alert's expression or description in your editor")
+    sp_edit.add_argument("name", help="Alert name to edit")
+    sp_edit.add_argument("--description", action="store_true", help="Edit description instead of expression")
+    sp_edit.add_argument("--no-validate", action="store_true", help="Skip Prometheus validation when editing expression")
+
+    sub.add_parser("show-config", help="Show effective configuration")
+
+    return p
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    global CONFIG_FILE
+    if args.config_file:
+        CONFIG_FILE = args.config_file
+        ensure_config_dir()
+
+    cfg = load_config()
+    validate_config(cfg)
+
+    if args.cmd == "set-endpoint":
+        cfg["prometheus_url"] = args.url
+        save_config(cfg)
+        print(f"Prometheus endpoint set to {args.url}")
+        return 0
+
+    if args.cmd == "show-config":
+        eff_url = resolve_prom_url(cfg, args.endpoint)
+        show = dict(cfg)
+        show["effective_prometheus_url"] = eff_url
+        show["effective_poll_interval_seconds"] = cfg.get("poll_interval_seconds", 1800)
+        print(json.dumps(show, indent=2, sort_keys=True))
+        return 0
+
+    if args.cmd == "add":
+        base_url_for_add = resolve_prom_url(cfg, args.endpoint)
+        if not args.no_validate:
+            try:
+                resp = query_prometheus(base_url_for_add, args.expr)
+                if not isinstance(resp, dict) or resp.get("status") != "success":
+                    et = resp.get("errorType") if isinstance(resp, dict) else None
+                    em = resp.get("error") if isinstance(resp, dict) else None
+                    raise SystemExit(f"Prometheus query failed: {et or ''} {em or ''}".strip())
+            except Exception as e:
+                raise SystemExit(f"Failed to validate expression against {base_url_for_add}: {e}")
+        add_alert(cfg, args.name, args.expr, args.comment, force=args.force)
+        print(f"Added alert '{args.name}'")
+        return 0
+
+    if args.cmd == "remove":
+        remove_alert(cfg, args.name)
+        print(f"Removed alert '{args.name}'")
+        return 0
+
+    if args.cmd == "list":
+        list_alerts(cfg)
+        return 0
+
+    if args.cmd == "set-interval":
+        cfg["poll_interval_seconds"] = max(1, args.seconds)
+        save_config(cfg)
+        print(f"Polling interval set to {cfg['poll_interval_seconds']} seconds")
+        return 0
+
+    base_url = resolve_prom_url(cfg, args.endpoint)
+
+    if args.cmd == "evaluate":
+        return evaluate(cfg, base_url, args.name)
+
+    if args.cmd == "ack":
+        ack_alert(cfg, args.name, True)
+        print(f"Acknowledged '{args.name}' (silenced until recovery)")
+        return 0
+
+    if args.cmd == "edit":
+        field = "comment" if args.description else "expr"
+        validate = False if args.description else (not args.no_validate)
+        return edit_alert(cfg, base_url, args.name, field, validate)
+
+    if args.cmd == "unack":
+        ack_alert(cfg, args.name, False)
+        print(f"Unacknowledged '{args.name}'")
+        return 0
+
+    if args.cmd == "run":
+        interval = args.interval if args.interval is not None else int(cfg.get("poll_interval_seconds", 1800))
+        if args.daemon:
+            if os.name == "posix":
+                daemonize_unix()
+            else:
+                print("--daemon is only supported on Unix-like systems; proceeding in foreground")
+        run_loop(cfg, base_url, interval, once=args.once)
+        return 0
+
+    parser.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
