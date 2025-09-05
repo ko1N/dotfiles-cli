@@ -7,9 +7,13 @@ return {
         prompt = '',
         ui_enabled = false,
         layout = {
-            width = 0.95,
-            height = 0.90, -- TODO: 1.0 does not work
+            width = 0.8,
+            height = 0.8, -- TODO: 1.0 does not work
             preview_size = 0.75,
+        },
+        preview = {
+            line_numbers = true,
+            wrap_lines = false,
         },
         keymaps = {
             move_up = { '<Up>', '<C-p>', '<C-k>' },
@@ -18,6 +22,9 @@ return {
             select = '<CR>',
         },
     },
+    -- No need to lazy-load with lazy.nvim.
+    -- This plugin initializes itself lazily.
+    lazy = false,
     keys = {
         {
             "ff",

@@ -49,20 +49,16 @@ set -gx GOBIN $GOPATH/bin
 set -gx PATH $GOBIN $PATH
 
 set -gx RUSTBIN $HOME/.cargo/bin
-if command -v brew >/dev/null 2>&1
-    set -gx RUSTBIN (brew --prefix rustup)/bin $RUSTBIN
-end
 set -gx PATH $RUSTBIN $PATH
-
-if command -v brew >/dev/null 2>&1
-    set -gx PATH (brew --prefix python3)/bin $PATH
-end
 
 set -gx PATH $HOME/.local/bin $PATH
 
 set -gx PATH $HOME/.npmenv/bin $PATH
 
-set -gx PATH $PATH $HOME/.lmstudio/bin
+# platform support
+if test (uname) = Darwin
+    source ~/.config/fish/platform/osx.fish
+end
 
 # secrets
 if test -f ~/.config/fish/secrets.fish
@@ -116,30 +112,14 @@ alias mv="mv -i"
 alias rm="rm -i"
 alias grep="grep --color=auto"
 
-# Overrides (in case the tool is installed)
-if command -v zoxide >/dev/null 2>&1
-    alias cd="z"
-end
-if command -v fd >/dev/null 2>&1
-    alias find="fd"
-end
-if command -v bat >/dev/null 2>&1
-    alias cat="bat --style=plain"
-end
-if command -v nvim >/dev/null 2>&1
-    alias vi="nvim"
-    alias vim="nvim"
-end
-if command -v yazi >/dev/null 2>&1
-    alias ranger="yazi"
-    alias files="yazi"
-end
-
 # ansible logging aliases
 alias ansible='ansible-log run ansible'
 alias ansible-playbook='ansible-log run ansible-playbook'
 alias ansible-vault='ansible-log run ansible-vault'
 alias ansible-galaxy='ansible-log run ansible-galaxy'
+
+# custom overrides for modern cli tooling
+source $HOME/.config/fish/functions/overrides.fish
 
 # scripts
 source $HOME/.config/fish/functions/fzf_navigation.fish
@@ -148,11 +128,11 @@ source $HOME/.config/fish/functions/fzf_git.fish
 source $HOME/.config/fish/functions/fzf_pyenv.fish
 
 # completions
-if command -v zoxide >/dev/null 2>&1
+if command -q -v zoxide >/dev/null 2>&1
     zoxide init fish | source
 end
 
-if command -v cells >/dev/null 2>&1
+if command -q -v cells >/dev/null 2>&1
     cells completion fish | source
 end
 
@@ -172,5 +152,5 @@ function sudo
 end
 
 # Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/patrick/.lmstudio/bin
+set -gx PATH $PATH $HOME/.lmstudio/bin
 # End of LM Studio CLI section
