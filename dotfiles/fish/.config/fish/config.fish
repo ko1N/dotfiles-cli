@@ -43,6 +43,7 @@ set -g fish_pager_color_progress abb2bf
 set -gx SHELL fish
 set -gx EDITOR nvim
 set -gx VISUAL nvim
+set -gx TERM xterm-256color
 
 set -gx GOPATH $HOME/go
 set -gx GOBIN $GOPATH/bin
@@ -152,5 +153,9 @@ function sudo
 end
 
 # Added by LM Studio CLI (lms)
-set -gx PATH $PATH $HOME/.lmstudio/bin
+set -gx PATH $PATH /Users/patrick/.lmstudio/bin
 # End of LM Studio CLI section
+
+# Added by OrbStack: command-line tools and integration
+# This won't be added again if you remove it.
+source ~/.orbstack/shell/init2.fish 2>/dev/null || :
