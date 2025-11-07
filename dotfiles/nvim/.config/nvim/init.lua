@@ -60,10 +60,11 @@ vim.keymap.set({ "n", "i", "v" }, "<C-j>", '<C-w>j', { noremap = true, silent = 
 vim.keymap.set({ "n", "i", "v" }, "<C-k>", '<C-w>k', { noremap = true, silent = true })
 vim.keymap.set({ "n", "i", "v" }, "<C-l>", '<C-w>l', { noremap = true, silent = true })
 
--- TODO: window resize
-
 -- Make visual mode paste replace selected text without overwriting register
-vim.keymap.set("x", "p", '"_dP', { noremap = true, silent = true })
+-- vim.keymap.set("x", "p", '"_dP', { noremap = true, silent = true })
+
+-- Modern version for more recent vim/nvim versions
+vim.keymap.set("x", "p", 'P', { noremap = true, silent = true })
 
 -- Visual maps
 vim.keymap.set("v", "<leader>r", '"hy:%s/<C-r>h//g<left><left>', { silent = true, desc = "Rename in file" })

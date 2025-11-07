@@ -7,8 +7,8 @@ return {
         prompt = '',
         ui_enabled = false,
         layout = {
-            width = 0.8,
-            height = 0.8, -- TODO: 1.0 does not work
+            width = 0.9,
+            height = 0.9, -- TODO: 1.0 does not work
             preview_size = 0.75,
         },
         preview = {
