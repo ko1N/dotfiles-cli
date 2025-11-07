@@ -415,6 +415,21 @@ def daemonize_unix() -> None:
         os.dup2(f.fileno(), sys.stderr.fileno())
 
 
+SYSTEMD_UNIT = """[Unit]
+Description=Promwatch - Prometheus alert watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/promwatch run
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
+"""
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="promwatch",
@@ -466,6 +481,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("show-config", help="Show effective configuration")
 
+    sub.add_parser("install-service", help="Install a systemd user service unit for promwatch")
+
     return p
 
 
@@ -480,6 +497,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cfg = load_config()
     validate_config(cfg)
+
+    if args.cmd == "install-service":
+        return install_service()
 
     if args.cmd == "set-endpoint":
         cfg["prometheus_url"] = args.url
@@ -557,6 +577,20 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     parser.print_help()
     return 2
+
+
+def install_service() -> int:
+    data = SYSTEMD_UNIT.encode("utf-8")
+    dst_dir = os.path.join(os.path.expanduser("~"), ".config", "systemd", "user")
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, "promwatch.service")
+    tmp = dst + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, dst)
+    print(f"Installed: {dst}")
+    print("Next steps: systemctl --user daemon-reload && systemctl --user enable --now promwatch.service")
+    return 0
 
 
 if __name__ == "__main__":
