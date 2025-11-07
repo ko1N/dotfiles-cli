@@ -27,6 +27,7 @@ $nim\
 $rust\
 $scala\
 [](fg:nord3)
+$nix_shell\
 $status
 """
 
@@ -44,6 +45,7 @@ nord4 = '#D8DEE9'
 nord11 = '#BF616A'
 nord13 = '#EBCB8B'
 nord14 = '#A2BE8A'
+nord15 = '#5E81AC'
 
 # username, host and OS
 [username]
@@ -169,6 +171,12 @@ symbol = ' '
 style = 'bg:nord3 fg:nord4'
 format = '[ $symbol ($version) ]($style)'
 
+[nix_shell]
+symbol = ''
+# style = 'bg:nord0 fg:nord15'
+format = '[ $symbol ]($style)'
+disabled = false
+
 # status
 [status]
 format = '[ $symbol ]($style)'
@@ -222,4 +230,3 @@ SUSE = ' '
 Ubuntu = ' '
 Unknown = ' '
 Windows = '󰍲 '
-
