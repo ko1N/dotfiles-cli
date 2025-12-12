@@ -3,6 +3,7 @@ require("config.lazy")
 
 -- custom modules
 require("custom.lspecho").setup()
+require("custom.opencodeecho").setup()
 require("custom.autosave").setup()
 require("custom.resize").setup()
 require("custom.split").setup()
