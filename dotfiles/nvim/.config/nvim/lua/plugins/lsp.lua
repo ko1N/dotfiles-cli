@@ -1,16 +1,16 @@
 -- Language definitions
 local languages = {
-    { ts = "lua",        lsp = "lua_ls",              fmt = "luaformatter",       linter = "luacheck" },
+    { ts = "lua",        lsp = "lua_ls",              fmt = "luaformatter", linter = "luacheck" },
 
-    { ts = "python",     lsp = "pyright",             fmt = { "black", "isort" }, linter = "flake8" },
-    { ts = "bash",       lsp = "bashls",              fmt = "shfmt",              linter = "shellcheck" },
+    { ts = "python",     lsp = "pyright",             fmt = "black",        linter = "flake8" },
+    { ts = "bash",       lsp = "bashls",              fmt = "shfmt",        linter = "shellcheck" },
     { ts = "fish",       lsp = "fish_lsp" },
 
     { ts = "html",       lsp = "html",                fmt = "prettier" },
     { ts = "css",        lsp = "cssls",               fmt = "prettier" },
     { ts = "scss",       lsp = "cssls",               fmt = "prettier" },
-    { ts = "javascript", lsp = "eslint",              fmt = "prettier",           linter = "eslint_d" },
-    { ts = "typescript", lsp = { "eslint", "ts_ls" }, fmt = "prettier",           linter = "eslint_d" },
+    { ts = "javascript", lsp = "eslint",              fmt = "prettier",     linter = "eslint_d" },
+    { ts = "typescript", lsp = { "eslint", "ts_ls" }, fmt = "prettier",     linter = "eslint_d" },
 
     { ts = "asm",        lsp = "asm_lsp" },
     { ts = "c",          lsp = "clangd",              fmt = "clang-format" },
@@ -26,15 +26,15 @@ local languages = {
     { ts = "json",       lsp = "jsonls",              fmt = "prettier" },
     { ts = "jsonc",      lsp = "jsonls",              fmt = "prettier" },
     { ts = "toml",       lsp = "taplo",               fmt = "taplo" },
-    { ts = "yaml",       lsp = "yamlls",              fmt = "yamlfmt",            linter = "yamllint" },
+    { ts = "yaml",       lsp = "yamlls",              fmt = "yamlfmt",      linter = "yamllint" },
     { ts = "xml",        lsp = "lemminx",             fmt = "xmlformatter" },
 
     -- { ts = "dockerfile", lsp = "dockerls",            linter = "hadolint" },
-    { ts = "terraform",  lsp = "terraformls",         fmt = "terraform",          linter = "tflint" },
+    { ts = "terraform",  lsp = "terraformls",         fmt = "terraform",    linter = "tflint" },
     { ts = "yaml",       lsp = "ansiblels" },
     -- { ts = "nix",        lsp = "nil_ls",              fmt = "nixfmt" },
 
-    { ts = "markdown",   lsp = "marksman",            fmt = "prettier",           linter = "markdownlint" },
+    { ts = "markdown",   lsp = "marksman",            fmt = "prettier",     linter = "markdownlint" },
     -- { ts = "tex",        lsp = "texlab",              fmt = "latexindent" },
 }
 
@@ -71,6 +71,7 @@ local lsp_configs = {
 
 local languages_treesitter = {}
 local languages_mason = {}
+local formatters_by_ft = {}
 
 local function add_to_table(target, items)
     if not items then return end
@@ -87,6 +88,11 @@ for _, lang in ipairs(languages) do
     add_to_table(languages_mason, lang.lsp)
     add_to_table(languages_mason, lang.fmt)
     add_to_table(languages_mason, lang.linter)
+
+    -- Build formatters_by_ft for conform.nvim
+    if lang.fmt then
+        formatters_by_ft[lang.ts] = { lang.fmt }
+    end
 end
 
 return {
@@ -160,6 +166,18 @@ return {
                 ensure_installed = languages_mason,
                 auto_update = true,
             }
+        end,
+    },
+    {
+        "stevearc/conform.nvim",
+        event = { "BufWritePre" },
+        cmd = { "ConformInfo" },
+        config = function()
+            require("conform").setup({
+                formatters_by_ft = formatters_by_ft,
+                -- Conform will use LSP formatting as a fallback
+                format_on_save = nil, -- We handle this in autosave.lua
+            })
         end,
     },
 }

@@ -167,20 +167,31 @@ function M.setup()
         end,
     })
 
-    vim.api.nvim_create_autocmd("LspAttach", {
-        group = vim.api.nvim_create_augroup("my.lsp", {}),
+    -- Format on save using conform.nvim or LSP
+    vim.api.nvim_create_autocmd("BufWritePre", {
+        group = vim.api.nvim_create_augroup("my.lsp.format", { clear = true }),
         callback = function(args)
-            local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
-            if not client:supports_method("textDocument/willSaveWaitUntil") and client:supports_method("textDocument/formatting") then
-                vim.api.nvim_create_autocmd("BufWritePre", {
-                    group = vim.api.nvim_create_augroup("my.lsp", { clear = false }),
-                    buffer = args.buf,
-                    callback = function()
-                        if not autoformat_disabled[args.buf] then
-                            vim.lsp.buf.format({ bufnr = args.buf, id = client.id, timeout_ms = 1000 })
-                        end
-                    end,
-                })
+            if autoformat_disabled[args.buf] then
+                return
+            end
+
+            -- Try conform.nvim first (dedicated formatters like black, prettier, etc.)
+            local conform_ok, conform = pcall(require, "conform")
+            if conform_ok then
+                local has_formatter = conform.list_formatters(args.buf)
+                if #has_formatter > 0 then
+                    conform.format({ bufnr = args.buf, timeout_ms = 1000 })
+                    return
+                end
+            end
+
+            -- Fallback to LSP formatting if no dedicated formatter is configured
+            local clients = vim.lsp.get_clients({ bufnr = args.buf })
+            for _, client in ipairs(clients) do
+                if client.supports_method("textDocument/formatting") then
+                    vim.lsp.buf.format({ bufnr = args.buf, timeout_ms = 1000 })
+                    return
+                end
             end
         end,
     })
