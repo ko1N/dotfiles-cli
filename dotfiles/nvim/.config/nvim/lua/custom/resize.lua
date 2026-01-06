@@ -399,7 +399,8 @@ function M.setup(opts)
     M.resize_amount = opts.resize_amount or 6
 
     local aug = vim.api.nvim_create_augroup('ResizeNeighborsCache', { clear = true })
-    vim.api.nvim_create_autocmd({ 'WinNew', 'WinClosed', 'TabNew', 'TabClosed', 'WinResized' }, { group = aug, callback = function() clear_neighbor_cache() end })
+    vim.api.nvim_create_autocmd({ 'WinNew', 'WinClosed', 'TabNew', 'TabClosed', 'WinResized' },
+        { group = aug, callback = function() clear_neighbor_cache() end })
 
     local keymap_opts = { noremap = true, silent = true }
 

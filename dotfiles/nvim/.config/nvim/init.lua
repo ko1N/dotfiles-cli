@@ -2,9 +2,9 @@
 require("config.lazy")
 
 -- custom modules
-require("custom.lspecho").setup()
-require("custom.opencodeecho").setup()
-require("custom.autosave").setup()
+-- require("custom.lspecho").setup() -- Replaced by fidget.nvim
+require("custom.opencode_progress").setup()
+require("custom.autoformat").setup()
 require("custom.resize").setup()
 require("custom.split").setup()
 

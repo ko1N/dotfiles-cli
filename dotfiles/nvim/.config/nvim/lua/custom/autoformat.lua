@@ -125,8 +125,8 @@ end
 local function toggle_autoformat()
     local buf = vim.api.nvim_get_current_buf()
     autoformat_disabled[buf] = not autoformat_disabled[buf]
-    local status = autoformat_disabled[buf] and "disabled" or "enabled"
-    vim.notify("Autoformat " .. status .. " for buffer " .. buf)
+    -- local status = autoformat_disabled[buf] and "disabled" or "enabled"
+    -- vim.print("Autoformat " .. status .. " for buffer " .. buf)
     local wins = vim.fn.win_findbuf(buf)
     for _, w in ipairs(wins) do
         update_window(w)

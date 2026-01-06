@@ -9,3 +9,5 @@ tree-sitter-gitcommit
 tree-sitter-vim
 .netrwhist
 *.nvim.log
+fff_queries
+snacks

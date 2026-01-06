@@ -7,8 +7,10 @@ return {
         -- { "folke/snacks.nvim", opts = { input = {}, picker = {}, terminal = {}, opts = {} } },
     },
     keys = {
-        { "<leader>co", function() require("opencode").ask("@this: ", { submit = true }) end, mode = { "n", "x" }, desc = "Ask opencode" },
-        { "<leader>cp", function() require("opencode").select() end, mode = { "n", "x" }, desc = "Execute opencode action…" },
+        { "<leader>co", function() require("opencode").ask("@this: ", { submit = true }) end,      mode = { "n", "x" }, desc = "OpenCode: Ask" },
+        { "<leader>cp", function() require("opencode").select() end,                               mode = { "n", "x" }, desc = "OpenCode: Execute..." },
+        { "<leader>ci", function() require("opencode").prompt("implement", { submit = true }) end, mode = { "n", "x" }, desc = "OpenCode: Implement function" },
+
         -- { "ga", function() require("opencode").prompt("@this") end, mode = { "n", "x" }, desc = "Add to opencode" },
         -- { "<C-.>", function() require("opencode").toggle() end, mode = { "n", "t" }, desc = "Toggle opencode" },
         -- { "<S-C-u>", function() require("opencode").command("session.half.page.up") end, mode = "n", desc = "opencode half page up" },
